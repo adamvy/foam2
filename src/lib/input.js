@@ -36,6 +36,7 @@ foam.CLASS({
   ]
 });
 
+
 foam.CLASS({
   package: 'foam.input',
   name: 'Mouse',

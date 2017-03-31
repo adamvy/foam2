@@ -83,7 +83,6 @@
 
   methods: [
     function init() {
-      this.scroll;
       this.onDetach(this.scroll.scroll.sub(this.onScroll));
       this.onDetach(this.data$proxy.pipe(this.FnSink.create({fn:this.onDaoUpdate})));
     },
