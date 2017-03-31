@@ -17,9 +17,20 @@
     },
     {
       class: 'Int',
+      name: 'rowHeight',
+      value: 22,
+    },
+    {
+      class: 'Int',
+      name: 'height',
+      value: 600,
+    },
+    {
+      class: 'Int',
       name: 'limit',
-      value: 30,
-      // TODO make this a funciton of the height.
+      expression: function(height, rowHeight) {
+        return height / rowHeight;
+      }
     },
     {
       class: 'Int',
@@ -39,10 +50,9 @@
         return this.ScrollCView.create({
           value$: this.skip$,
           extent$: this.limit$,
-          height: 600, // TODO use window height.
+          height$: this.height$,
           width: 40,
           handleSize: 40,
-          // TODO wire up mouse wheel
           // TODO clicking away from scroller should deselect it.
         });
       },
