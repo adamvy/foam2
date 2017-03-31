@@ -8,6 +8,7 @@
     'foam.graphics.ScrollCView',
     'foam.dao.FnSink',
     'foam.mlang.sink.Count',
+    'foam.input.Scroll',
   ],
 
   properties: [
@@ -53,6 +54,10 @@
         return this.TableView.create({data$: this.scrolledDao$});
       },
     },
+    {
+      name: 'scroll',
+      factory: function() { return this.Scroll.create({element: this}) },
+    },
   ],
 
   listeners: [
@@ -67,10 +72,19 @@
         })
       },
     },
+    {
+      name: 'onScroll',
+      code: function(_, _, touch) {
+        // This magic 50 just slows down the scrolling.
+        this.skip += (Math.round(touch.deltaY/50) || (touch.deltaY > 0 ? 1 : -1));
+      }
+    }
   ],
 
   methods: [
     function init() {
+      this.scroll;
+      this.onDetach(this.scroll.scroll.sub(this.onScroll));
       this.onDetach(this.data$proxy.pipe(this.FnSink.create({fn:this.onDaoUpdate})));
     },
     function initE() {

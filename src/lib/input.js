@@ -36,7 +36,6 @@ foam.CLASS({
   ]
 });
 
-
 foam.CLASS({
   package: 'foam.input',
   name: 'Mouse',
@@ -126,6 +125,38 @@ foam.CLASS({
         }
       }
     }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.input',
+  name: 'Scroll',
+
+  topics: [
+    'scroll'
+  ],
+
+  properties: [
+    {
+      name: 'touches',
+      factory: function() { return {}; }
+    },
+    {
+      name: 'element',
+      postSet: function(old, e) {
+        if ( old ) {
+          old.removeEventListener('wheel', this.onScroll);
+        }
+        e.addEventListener('wheel', this.onScroll);
+      }
+    }
+  ],
+
+  listeners: [
+    function onScroll(e) {
+      this.scroll.pub(e);
+    },
   ]
 });
 
