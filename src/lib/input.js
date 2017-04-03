@@ -132,7 +132,33 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.input',
+  name: 'ScrollEvent',
+
+  properties: [
+    {
+      class: 'Float',
+      name: 'deltaX'
+    },
+    {
+      class: 'Float',
+      name: 'deltaY'
+    },
+    {
+      class: 'Boolean',
+      name: 'claimed',
+      value: false
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.input',
   name: 'Scroll',
+
+  requires: [
+    'foam.input.ScrollEvent',
+  ],
 
   topics: [
     'scroll'
@@ -156,7 +182,14 @@ foam.CLASS({
 
   listeners: [
     function onScroll(e) {
-      this.scroll.pub(e);
+      var scrollEvent = this.ScrollEvent.create({
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+      });
+      this.scroll.pub(scrollEvent);
+      if (scrollEvent.claimed) {
+        e.preventDefault();
+      }
     },
   ]
 });

@@ -77,6 +77,7 @@
       code: function(_, _, touch) {
         // This magic 50 just slows down the scrolling.
         this.skip += (Math.round(touch.deltaY/50) || (touch.deltaY > 0 ? 1 : -1));
+        touch.claimed = true;
       }
     }
   ],
