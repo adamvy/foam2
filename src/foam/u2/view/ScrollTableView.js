@@ -19,7 +19,7 @@
     {
       class: 'Int',
       name: 'limit',
-      value: 30,
+      value: 10,
       // TODO make this a funciton of the height.
     },
     {
@@ -30,7 +30,7 @@
       class: 'foam.dao.DAOProperty',
       name: 'scrolledDao',
       expression: function(data, limit, skip) {
-        return data.limit(limit).skip(skip);
+        return data ? data.limit(limit).skip(skip) : foam.dao.NullDAO.create();
       },
     },
     {
@@ -51,32 +51,36 @@
     {
       name: 'tableView',
       factory: function() {
-        return this.TableView.create({data$: this.scrolledDao$});
+        var v = this.TableView.create({data$: this.scrolledDao$});
+        v.attrs({border: 1});
+        return v;
       },
     },
     {
       name: 'scroll',
-      factory: function() { return this.Scroll.create({element: this}) },
+      factory: function() { return this.Scroll.create({element: this.tableView}) },
     },
   ],
 
   listeners: [
     {
-      // TODO Avoid onDaoUpdate approaches.
       name: 'onDaoUpdate',
       isFramed: true,
       code: function() {
         var self = this;
         this.data$proxy.select(this.Count.create()).then(function(s) {
+          var isAtBottom = self.scrollView.size == self.skip + self.limit;
           self.scrollView.size = s.value;
+          self.skip = isAtBottom ?
+            s.value - self.limit :
+            Math.min(self.skip, s.value - self.limit);
         })
       },
     },
     {
       name: 'onScroll',
       code: function(_, _, touch) {
-        // This magic 50 just slows down the scrolling.
-        this.skip += (Math.round(touch.deltaY/50) || (touch.deltaY > 0 ? 1 : -1));
+        this.skip += (Math.round(touch.deltaY) || (touch.deltaY > 0 ? 1 : -1));
         touch.claimed = true;
       }
     }
@@ -96,5 +100,14 @@
         end().
       end();
     }
-  ]
+  ],
+
+  actions: [
+    function scrollToBottom() {
+      var self = this;
+      this.data$proxy.select(this.Count.create()).then(function(s) {
+        self.skip = s.value - self.limit;
+      })
+    },
+  ],
 });

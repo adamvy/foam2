@@ -157,6 +157,7 @@ foam.CLASS({
   name: 'Scroll',
 
   requires: [
+    'foam.input.Touch',
     'foam.input.ScrollEvent',
   ],
 
@@ -166,22 +167,28 @@ foam.CLASS({
 
   properties: [
     {
-      name: 'touches',
-      factory: function() { return {}; }
+      name: 'lastTouch',
     },
     {
       name: 'element',
       postSet: function(old, e) {
         if ( old ) {
-          old.removeEventListener('wheel', this.onScroll);
+          old.removeEventListener('wheel', this.onWheel);
         }
-        e.addEventListener('wheel', this.onScroll);
+        e.addEventListener('wheel', this.onWheel);
       }
     }
   ],
 
+  methods: [
+    function init() {
+      this.onDetach(
+          this.Touch.create({element$: this.element$}).touch.sub(this.onTouch));
+    },
+  ],
+
   listeners: [
-    function onScroll(e) {
+    function onWheel(e) {
       var scrollEvent = this.ScrollEvent.create({
         deltaX: e.deltaX,
         deltaY: e.deltaY,
@@ -190,6 +197,19 @@ foam.CLASS({
       if (scrollEvent.claimed) {
         e.preventDefault();
       }
+    },
+    function onTouch(_, _, touch) {
+      var lastTouch = touch.clone();
+      var self = this;
+      this.onDetach(touch.sub(function() {
+        var scrollEvent = self.ScrollEvent.create({
+          deltaX: lastTouch.x - touch.x,
+          deltaY: lastTouch.y - touch.y,
+        });
+        lastTouch = touch.clone();
+        self.scroll.pub(scrollEvent);
+        touch.claimed = scrollEvent.claimed;
+      }));
     },
   ]
 });
