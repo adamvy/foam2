@@ -109,7 +109,7 @@
       // TODO probably shouldn't be using a table.
       this.start('table').style({'width':'100%'}).
         start('tr').
-          start('td').style({'width':'100%'}).add(this.tableView).end().
+          start('td').style({'vertical-align': 'top', 'width':'100%'}).add(this.tableView).end().
           start('td').add(this.scrollView).end().
         end().
       end();
