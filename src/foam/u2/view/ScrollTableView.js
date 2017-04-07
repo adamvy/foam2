@@ -18,9 +18,25 @@
     },
     {
       class: 'Int',
+      name: 'height',
+      value: 200,
+    },
+    {
+      class: 'Int',
+      name: 'headerHeight',
+      value: 28,
+    },
+    {
+      class: 'Int',
+      name: 'rowHeight',
+      value: 28,
+    },
+    {
+      class: 'Int',
       name: 'limit',
-      value: 10,
-      // TODO make this a funciton of the height.
+      expression: function(height, rowHeight, headerHeight) {
+        return (height - headerHeight) / rowHeight;
+      },
     },
     {
       class: 'Int',
@@ -36,16 +52,14 @@
     {
       name: 'scrollView',
       factory: function() {
-        var self = this;
-        return this.ScrollCView.create({
+        var s = this.ScrollCView.create({
           value$: this.skip$,
-          extent$: this.limit$,
-          height: 600, // TODO use window height.
+          height$: this.height$,
           width: 40,
           handleSize: 40,
-          // TODO wire up mouse wheel
-          // TODO clicking away from scroller should deselect it.
         });
+        s.extent$.follow(this.limit$);
+        return s;
       },
     },
     {
@@ -69,7 +83,7 @@
       code: function() {
         var self = this;
         this.data$proxy.select(this.Count.create()).then(function(s) {
-          var isAtBottom = self.scrollView.size == self.skip + self.limit;
+          var isAtBottom = self.scrollView.size >= self.skip + self.limit;
           self.scrollView.size = s.value;
           self.skip = isAtBottom ?
             s.value - self.limit :
