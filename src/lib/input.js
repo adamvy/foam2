@@ -132,6 +132,91 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.input',
+  name: 'ScrollEvent',
+
+  properties: [
+    {
+      class: 'Float',
+      name: 'deltaX'
+    },
+    {
+      class: 'Float',
+      name: 'deltaY'
+    },
+    {
+      class: 'Boolean',
+      name: 'claimed',
+      value: false
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.input',
+  name: 'Scroll',
+
+  requires: [
+    'foam.input.Touch',
+    'foam.input.ScrollEvent',
+  ],
+
+  topics: [
+    'scroll'
+  ],
+
+  properties: [
+    {
+      name: 'lastTouch',
+    },
+    {
+      name: 'element',
+      postSet: function(old, e) {
+        if ( old ) {
+          old.removeEventListener('wheel', this.onWheel);
+        }
+        e.addEventListener('wheel', this.onWheel);
+      }
+    }
+  ],
+
+  methods: [
+    function init() {
+      this.onDetach(
+          this.Touch.create({element$: this.element$}).touch.sub(this.onTouch));
+    },
+  ],
+
+  listeners: [
+    function onWheel(e) {
+      var scrollEvent = this.ScrollEvent.create({
+        deltaX: e.deltaX,
+        deltaY: e.deltaY,
+      });
+      this.scroll.pub(scrollEvent);
+      if (scrollEvent.claimed) {
+        e.preventDefault();
+      }
+    },
+    function onTouch(_, _, touch) {
+      var lastTouch = touch.clone();
+      var self = this;
+      this.onDetach(touch.sub(function() {
+        var scrollEvent = self.ScrollEvent.create({
+          deltaX: lastTouch.x - touch.x,
+          deltaY: lastTouch.y - touch.y,
+        });
+        lastTouch = touch.clone();
+        self.scroll.pub(scrollEvent);
+        touch.claimed = scrollEvent.claimed;
+      }));
+    },
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.input',
   name: 'Touch',
 
   topics: [
