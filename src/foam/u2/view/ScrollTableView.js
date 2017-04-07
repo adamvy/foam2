@@ -35,7 +35,7 @@
       class: 'Int',
       name: 'limit',
       expression: function(height, rowHeight, headerHeight) {
-        return (height - headerHeight) / rowHeight;
+        return Math.round((height - headerHeight) / rowHeight);
       },
     },
     {
