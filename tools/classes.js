@@ -139,6 +139,7 @@ var classes = [
   'foam.nanos.auth.Region',
   'foam.nanos.logger.Logger',
   'foam.nanos.menu.Menu',
+  'foam.nanos.menu.AbstractMenu',
   'foam.nanos.menu.DAOMenu',
   'foam.nanos.menu.ListMenu',
   'foam.nanos.menu.MenuBar',
@@ -205,7 +206,6 @@ var classes = [
 ];
 
 var abstractClasses = [
-  'foam.nanos.menu.AbstractMenu',
 //  'foam.json.Outputter'
 ];
 

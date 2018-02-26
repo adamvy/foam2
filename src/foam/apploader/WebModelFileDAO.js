@@ -97,15 +97,19 @@ foam.CLASS({
           context.foam.RELATIONSHIP = function(r) {
             var references = foam.json.references(x, r);
 
-            Promise.all(references.concat([
-              foam.package.waitForClass(r.sourceModel),
-              foam.package.waitForClass(r.targetModel)
-            ])).then(function() {
-              var obj = foam.dao.Relationship.create(r, x);
+            var sem = 2;
+            function trigger() {
+              sem--;
+              if ( sem == 0 ) {
+                var obj = foam.dao.Relationship.create(r, x);
 
-              obj.validate && obj.validate();
-              foam.package.registerClass(obj);
-            });
+                obj.validate && obj.validate();
+                foam.package.registerClass(obj);
+              }
+            }
+
+            foam.package.waitForClass(trigger, r.sourceModel);
+            foam.package.waitForClass(trigger, r.targetModel);
           };
 
           with ( context ) { eval(text); }

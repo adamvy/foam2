@@ -410,6 +410,7 @@ FOAM_FILES([
   { name: "foam/u2/stack/StackView", flags: ['web'] },
   { name: "foam/apploader/ClassLoader" },
   { name: "foam/apploader/WebModelFileDAO" },
+  { name: "foam/apploader/NodeModelFileDAO" },
   { name: "foam/apploader/ClassLoaderContext" },
   { name: "foam/u2/FoamTagLoader", flags: ['web'] },
   { name: "foam/graphics/CView", flags: ['web'] },

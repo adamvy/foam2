@@ -1,7 +1,7 @@
 FOAM2_HOME ?= .
 
 foam2_SRC_DIR = src
-foam2_CLASSES = tools/classes.js
+foam2_CLASSES = src/foam/nanos/classes.json
 
 # Format for dependencies from maven is
 # <groupId>:<artifactId>:<version>
@@ -39,6 +39,12 @@ include build-aux/java.mk
 nanos: nanos.in $(foam2_JAR)
 	sed -e 's,@CLASSPATH[@],$(foam2_CLASSPATH):$(abspath $(foam2_JAR)),g' $< > $@
 	chmod +x $@
+
+configure: configure.ac
+	autoconf
+
+bin/foam: bin/foam.in
+	./configure
 
 all: nanos
 

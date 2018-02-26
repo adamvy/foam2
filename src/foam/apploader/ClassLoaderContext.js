@@ -22,19 +22,15 @@ foam.CLASS({
     {
       name: "classloader",
       factory: function() {
-        return this.ClassLoader.create({
-          modelDAO: this.WebModelFileDAO.create({
-            root: this.root
-          })
-        });
+        return this.ClassLoader.create();
       }
     }
   ]
 });
 (function() {
-  foam.__context__ = foam.apploader.ClassLoaderContext.create({
-    root: global.FOAM_ROOT
-  }, foam.__context__).__subContext__;
+  foam.__context__ = foam.apploader.ClassLoaderContext.create().__subContext__;
+
+  foam.__context__.classloader.addClassPath(global.FOAM_ROOT);
 
   var CLASS = foam.CLASS;
   foam.CLASS = function(m) {
