@@ -111,7 +111,9 @@ public class FileWebAgent
       }
 
       // file not found
-      throw new FileNotFoundException("File not found: " + path);
+      resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
+      resp.setContentType(EXTS.get("json"));
+      pw.write("{\"error\": \"File not found\"," + "\"filename\": \"" + StringEscapeUtils.escapeJson(path) + "\"}");
     } catch (Throwable t) {
       t.printStackTrace();
       resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
