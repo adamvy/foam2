@@ -313,6 +313,7 @@ FOAM_FILES([
   { name: "foam/box/ClassWhitelistContext" },
   { name: "foam/box/LoggedLookupContext" },
   { name: "foam/box/Context" },
+  { name: "foam/box/BoxContext" },
   { name: "foam/box/BoxService" },
   { name: "foam/box/HTTPReplyBox" },
   { name: "foam/box/AuthenticatedBox" },
