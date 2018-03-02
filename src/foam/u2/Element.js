@@ -1443,6 +1443,10 @@ foam.CLASS({
       return this;
     },
 
+    function addAll(array) {
+      return this.add.apply(this, array);
+    },
+
     function toE() {
       return this;
     },
