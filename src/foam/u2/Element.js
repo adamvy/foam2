@@ -884,6 +884,13 @@ foam.CLASS({
       this.SUPER();
     },
 
+    function whileLoaded(f) {
+      this.onLoad(function() {
+        var s = f();
+        this.onUnload(s);
+      })
+    },
+
     function initE() {
       this.initKeyboardShortcuts();
       /*
@@ -1603,13 +1610,11 @@ foam.CLASS({
         delegate: listener
       }, this);
 
-      this.onLoad(function() {
+      this.whileLoaded(function() {
         var s = dao.listen(listener);
         listener.delegate.paint();
-        this.onUnload(function() {
-          s.detach();
-        }.bind(this));
-      }.bind(this));
+        return s;
+      });
 
       return this;
     },
@@ -1807,11 +1812,8 @@ foam.CLASS({
         prev = next;
       };
 
-      this.onLoad(function() {
-        var s = slot.sub(this.framed(l));
-        this.onUnload(function() {
-          s.detach();
-        }.bind(this));
+      this.whileLoaded(function() {
+        return slot.sub(this.framed(l));
       }.bind(this));
 
       return prev;
