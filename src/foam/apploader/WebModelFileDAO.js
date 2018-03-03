@@ -39,5 +39,5 @@ foam.CLASS({
           fetcher: this.WebModelFileFetcher.create({root: this.root}), });
       },
     },
-  ],
+  ]
 });

@@ -17,15 +17,15 @@ foam.CLASS({
   properties: [
     {
       name: "classloader",
-      factory: function() { return this.ClassLoader.create() },
+      factory: function() {
+        return this.ClassLoader.create();
+      }
     }
   ]
 });
 (function() {
-  var classLoaderContext = foam.apploader.ClassLoaderContext.create(
-      null, foam.__context__);
-  classLoaderContext.classloader.addClassPath(global.FOAM_ROOT);
-  foam.__context__ = classLoaderContext.__subContext__;
+  foam.__context__ = foam.apploader.ClassLoaderContext.create().__subContext__;
+  foam.__context__.classloader.addClassPath(global.FOAM_ROOT);
 
   var CLASS = foam.CLASS;
   foam.CLASS = function(m) {

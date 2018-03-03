@@ -1319,7 +1319,24 @@ foam.CLASS({
           foam.java.JavaImport.create(o) ;
       }
     }
-  ]
+  ],
+
+  methods: [
+    function buildJavaClass(x) {
+      var cls = foam.java.Class.create();
+      cls.name = this.name;
+      cls.package = this.package;
+      cls.extends = this.extends === 'FObject' ? 'foam.core.AbstractFObject' : this.extends;
+      cls.abstract = this.abstract;
+
+      var superClass = x.modelDAO.find(this.extends).then(function() {
+      });
+
+      for ( var i = 0 ; i < this.axioms_.length ; i++ ) {
+        this.axioms_[i].buildJavaClass();
+      }
+    }
+  ],
 });
 
 

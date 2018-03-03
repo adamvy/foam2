@@ -51,10 +51,10 @@ have multiple classloaders running alongside eachother`
         if ( this.modelDAO ) {
           modelDAO = this.OrDAO.create({
             primary: this.modelDAO,
-            delegate: modelDAO
+            delegate: dao
           });
         }
-        this.modelDAO = modelDAO;
+        this.modelDAO = dao;
       }
     },
     {
@@ -137,7 +137,8 @@ have multiple classloaders running alongside eachother`
             if ( ! m ) return Promise.reject(new Error('Class Not Found: ' + id));
 
             return this.buildClass_(m, path);
-          }.bind(this), function() {
+          }.bind(this), function(e) {
+            console.error("Error", e);
             throw new Error("Failed to load class " + id);
           });
         }

@@ -931,15 +931,12 @@ foam.LIB({
       foam.package.triggerClass_(cls);
     },
 
-    function waitForClass(cls) {
-      if ( foam.lookup(cls, true) ) return Promise.resolve(foam.lookup(cls));
+    function waitForClass(cb, cls) {
+      if ( foam.lookup(cls, true) ) cb(foam.lookup(cls));
 
       foam.package.__pending = foam.package.__pending || {};
       foam.package.__pending[cls] = foam.package.__pending[cls] || [];
-
-      return new Promise(function(resolve, reject) {
-        foam.package.__pending[cls].push(resolve);
-      });
+      foam.package.__pending[cls].push(cb);
     },
 
     function triggerClass_(cls) {
