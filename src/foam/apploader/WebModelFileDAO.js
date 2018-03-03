@@ -38,6 +38,6 @@ foam.CLASS({
         return cls.create({
           fetcher: this.WebModelFileFetcher.create({root: this.root}), });
       },
-    },
+    }
   ]
 });

@@ -46,10 +46,10 @@ have multiple classloaders running alongside eachother`
         var cls = foam.lookup(foam.isServer ?
             'foam.apploader.NodeModelFileDAO' :
             'foam.apploader.WebModelFileDAO');
-        var modelDAO = cls.create({root: path, json2: json2}, this);
+        var dao = cls.create({root: path, json2: json2}, this);
 
         if ( this.modelDAO ) {
-          modelDAO = this.OrDAO.create({
+          dao = this.OrDAO.create({
             primary: this.modelDAO,
             delegate: dao
           });
