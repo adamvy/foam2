@@ -499,6 +499,12 @@ foam.CLASS({
       name: 'of'
     },
     {
+      name: 'targetProperty',
+      factory: function() {
+        return this.of.ID;
+      }
+    },
+    {
       class: 'String',
       name: 'targetDAOKey',
       expression: function(of) { return foam.String.daoize(of.name); }
