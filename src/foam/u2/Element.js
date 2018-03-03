@@ -355,7 +355,10 @@ foam.CLASS({
       f();
     },
     function onUnload(f) {
-      this.onunload.sub(f);
+      this.onunload.sub(function(s) {
+        s.detach();
+        f();
+      });
     },
     function unload() {
       if ( ! this.parentNode || this.parentNode.state === this.LOADED ) {
