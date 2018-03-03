@@ -75,7 +75,7 @@ foam.CLASS({
             });
           };
 
-          with ( context ) { eval(text); }
+          with ( context ) { eval(text + '\n//# sourceURL=' + id); }
 
           if ( ! json ) {
             throw new Error('No model found for ' + id);
@@ -101,4 +101,3 @@ foam.CLASS({
     }
   ]
 });
-
