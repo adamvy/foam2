@@ -34,6 +34,7 @@ foam.CLASS({
       name: 'targetProperty',
       transient: true
     },
+    ['hidden', true],
     ['getter', function() {
       return this.cls_.ID.targetProperty.f(this);
     }],
