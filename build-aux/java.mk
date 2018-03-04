@@ -18,7 +18,8 @@ java_dep_sha1 = $(call java_dep_jar,$(1)).sha1
 java_dep_jar_url = $(MAVEN_BASE_URL)/$(subst .,/,$(call java_dep_group,$(1)))/$(call java_dep_artifact,$(1))/$(call java_dep_version,$(1))/$(call java_dep_jar,$(1))
 java_dep_sha1_url = $(MAVEN_BASE_URL)/$(subst .,/,$(call java_dep_group,$(1)))/$(call java_dep_artifact,$(1))/$(call java_dep_version,$(1))/$(call java_dep_sha1,$(1))
 
-foam_genjava = $(FOAM2_HOME)/bin/foam foam.build.java.Build
+#foam_genjava = $(FOAM2_HOME)/bin/foam foam.build.java.Build
+foam_genjava = $(NODE) $(FOAM2_HOME)/tools/genjava2.js
 
 define JAVA_MAVEN_LIB_template
 $(2)_JAVA_LIBS += $(JAVA_DEP_DIR)/$(call java_dep_jar,$(1))
@@ -74,7 +75,8 @@ $$($(1)_JAR): $$($(1)_SRC_HASH)
 $$($(1)_SRC_HASH): $$(FOAM2_HOME)/bin/foam | $$($(1)_GEN_SRC_DIR)
 	find $$($(1)_GEN_SRC_DIR) -maxdepth 1 -type f -iname '.srchash-*' -delete
 	find $$($(1)_GEN_SRC_DIR) -type f -iname '*.java' -delete
-	$$(foam_genjava) --classesFile $$($(1)_CLASSES) --targetDirectory $$($(1)_GEN_SRC_DIR)
+#	$$(foam_genjava) --classesFile $$($(1)_CLASSES) --targetDirectory $$($(1)_GEN_SRC_DIR)
+	$$(foam_genjava) $$($(1)_CLASSES) $$($(1)_GEN_SRC_DIR) $$($(1)_SRC_DIR)
 	touch $$@
 
 clean-$(1)-gensrcs:

@@ -1,7 +1,8 @@
 FOAM2_HOME ?= .
 
 foam2_SRC_DIR = src
-foam2_CLASSES = src/foam/nanos/classes.json
+#foam2_CLASSES = src/foam/nanos/classes.json
+foam2_CLASSES = tools/classes.js
 
 # Format for dependencies from maven is
 # <groupId>:<artifactId>:<version>
