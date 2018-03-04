@@ -8,6 +8,7 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'AddressDetailView',
   extends: 'foam.u2.View',
+  flags: [ 'web' ],
 
   documentation: 'Address Detail View',
 
@@ -17,12 +18,12 @@ foam.CLASS({
     ^ {
       height: auto;
     }
-    
+
     ^ .address-container{
       background: white;
       padding: 4px 25px;
       margin-bottom: 20px;
-    } 
+    }
     ^ .input-container-half{
       width: 46%;
       display: inline-block;
@@ -81,7 +82,7 @@ foam.CLASS({
       margin-top: 10px;
     }
 
-    
+
     ^ p{
       font-size: 10px;
       color: #093649;
@@ -173,7 +174,7 @@ foam.CLASS({
           .start().addClass('input-container-half')
             .start('label').add('Province').end()
             .start(this.Address.REGION_ID).end()
-          .end()    
+          .end()
           .start().addClass('input-container-half')
             .start('label').add('Postal Code').end()
             .start(this.Address.POSTAL_CODE).end()

@@ -8,6 +8,7 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'SignInView',
   extends: 'foam.u2.View',
+  flags: [ 'web' ],
 
   documentation: 'Sign In View',
 

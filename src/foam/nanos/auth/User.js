@@ -11,7 +11,10 @@ foam.CLASS({
   implements: [
     'foam.nanos.auth.EnabledAware',
     'foam.nanos.auth.LastModifiedAware',
-    'foam.nanos.auth.LastModifiedByAware'
+    {
+      path: 'foam.nanos.auth.LastModifiedByAware',
+      flags: ['js']
+    }
   ],
 
   requires: [

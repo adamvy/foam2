@@ -8,6 +8,7 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'PermissionTableView',
   extends: 'foam.u2.View',
+  flags: [ 'web' ],
 
   imports: [
     'auth',
@@ -23,7 +24,7 @@ foam.CLASS({
   css: `
     ^ table > tbody:nth-child(odd) {
       background: #f6f9f9;
-    } 
+    }
   `,
 
   methods: [

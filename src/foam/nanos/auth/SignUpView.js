@@ -19,6 +19,7 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'SignUpView',
   extends: 'foam.u2.View',
+  flags: [ 'web' ],
 
   documentation: 'User Registration View',
 

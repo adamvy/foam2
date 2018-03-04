@@ -8,6 +8,7 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'ProfilePictureView',
   extends: 'foam.u2.Element',
+  flags: [ 'web' ],
 
   requires: [
     'foam.blob.BlobBlob',

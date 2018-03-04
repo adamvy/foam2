@@ -7,6 +7,7 @@
 foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'LastModifiedByAware',
+  flags: ['js'],
 
   properties: [
     {
