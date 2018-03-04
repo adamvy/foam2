@@ -1,12 +1,12 @@
 FOAM2_HOME ?= .
 
-foam2_SRC_DIR = src
+nanos_SRC_DIR = src
 #foam2_CLASSES = src/foam/nanos/classes.json
-foam2_CLASSES = tools/classes.js
+nanos_CLASSES = tools/classes.js
 
 # Format for dependencies from maven is
 # <groupId>:<artifactId>:<version>
-foam2_MAVEN_DEPS = \
+nanos_MAVEN_DEPS = \
 	javax.json:javax.json-api:1.0 \
 	javax.mail:mail:1.4.7 \
 	javax.mail:javax.mail-api:1.5.5 \
@@ -32,14 +32,14 @@ foam2_MAVEN_DEPS = \
 	com.google.guava:guava:23.6-jre \
 	com.google.appengine:appengine-api-1.0-sdk:1.9.24
 
-java_JARS = foam2
+java_JARS = nanos
 
 include build-aux/tools.mk
 include build-aux/java.mk
 
-nanos: nanos.in $(foam2_JAR)
-	sed -e 's,@CLASSPATH[@],$(foam2_CLASSPATH):$(abspath $(foam2_JAR)),g' $< > $@
-	chmod +x $@
+#nanos: nanos.in $(foam2_JAR)
+#	sed -e 's,@CLASSPATH[@],$(foam2_CLASSPATH):$(abspath $(foam2_JAR)),g' $< > $@
+#	chmod +x $@
 
 configure: configure.ac
 	autoconf
@@ -51,5 +51,5 @@ all: nanos
 
 .PHONY: run
 
-run: nanos $(foam2_JAR)
-	./$< -d --datadir src
+run: nanos
+	./nanos -d --datadir src

@@ -43,6 +43,53 @@ BUILD_DIR ?= build
 $(BUILD_DIR):
 	$(MKDIR_P) $@
 
+define launcher_template
+#!/bin/sh
+
+DEBUG=n
+SUSPEND=n
+DEBUG_PORT=8000
+
+function usage {
+    echo "Usage: nanos [OPTIONS] [NANOS_OPTIONS]"
+    echo ""
+    echo "Options:"
+    echo " -d Enable JPDA debugging"
+    echo " -s When debugging is enabled, start with application suspended."
+    echo " -a PORT Listen on PORT for debugger connections, default 8000"
+    echo " -j JAR1:JAR2 Additional jars to add to the classpath."
+    echo ""
+    echo "Nanos Options:"
+    # TODO: Let nanos output these itself.
+    echo ""
+    echo " --datadir DATADIR Look for data files in DATADIR rather than current"
+    echo "   working directory."
+    echo ""
+}
+
+while getopts ":da:shj:" opt; do
+    case $$opt in
+        d) DEBUG=y ;;
+        s) SUSPEND=y ;;
+        a) DEBUG_PORT=$$OPTARG ;;
+        j) EXTRA_CP=":$$OPTARG" ;;
+        h) usage ; exit 0 ;;
+        ?) break ;;
+    esac
+done
+
+DEBUG_ARGS=
+
+if test "$$DEBUG" = y; then
+    DEBUG_ARGS="-agentlib:jdwp=transport=dt_socket,server=y,suspend=$${SUSPEND},address=$${DEBUG_PORT}"
+fi
+
+shift $$(($$OPTIND - 1))
+
+java $$DEBUG_ARGS -cp $(1):$(2):$$EXTRA_CP foam.nanos.boot.Boot "$$@"
+
+endef
+
 
 define JAVA_JAR_template
 $(1)_CLASSPATH = $$(subst $$(space),:,$$(foreach lib,$$($(1)_JAVA_LIBS),$$(abspath $$(lib))))
@@ -88,9 +135,11 @@ clean-$(1):
 
 clean: clean-$(1) clean-$(1)-gensrcs
 
-.PHONY: $(1)
 
 $(1): $$($(1)_JAR) $$($(1)_CLASSPATH_TXT)
+	@echo "Building launcher script..."
+	$$(file >$$@,$$(call launcher_template,$$($(1)_JAR),$$($(1)_CLASSPATH)))
+	chmod +x $$@
 
 $$($(1)_CLASSPATH_TXT): $$($(1)_JAR)
 	echo $$($(1)_CLASSPATH):$$(abspath $$($(1)_JAR)) > $$@
