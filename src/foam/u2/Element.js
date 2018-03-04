@@ -888,7 +888,7 @@ foam.CLASS({
       this.onLoad(function() {
         var s = f();
         this.onUnload(s);
-      })
+      }.bind(this));
     },
 
     function initE() {
