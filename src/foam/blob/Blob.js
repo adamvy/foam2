@@ -346,7 +346,7 @@ foam.CLASS({
   package: 'foam.blob',
   name: 'IdentifiedBlob',
   extends: 'foam.blob.ProxyBlob',
-  
+
   imports: [
     'blobStore?',
     'blobService'
@@ -360,6 +360,8 @@ foam.CLASS({
     {
       name: 'delegate',
       transient: true,
+      cloneProperty: function(){},
+      javaCloneProperty: '//nop',
       factory: function() {
         return this.blobService.find(this.id);
       },
@@ -819,7 +821,7 @@ foam.CLASS({
                              this.BlobBlob.create({ blob: this.blobs[id] }) :
                              null);
     },
-    
+
     function urlFor_(x, blob) {
       if ( this.IdentifiedBlob.isInstance(blob) ) {
         return URL.createObjectURL(this.blobs[blob.id]);
