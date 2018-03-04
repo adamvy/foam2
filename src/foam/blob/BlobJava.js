@@ -193,9 +193,12 @@ foam.CLASS({
   ],
 
   properties: [
-    { class: 'String', name: 'root', javaFactory: 'return System.getProperty(\"user.dir\");'},
-    { class: 'String', name: 'tmp', javaFactory: 'return getRoot() + File.separator + "tmp";' },
-    { class: 'String', name: 'sha256', javaFactory: 'return getRoot() + File.separator + "sha256";' }
+    {
+      class: 'Object',
+      javaType: 'foam.nanos.fs.Storage',
+      name: 'storage',
+      javaFactory: 'return getX().get(foam.nanos.fs.Storage.class).sub("blobstore");'
+    }
   ],
 
   methods: [
@@ -206,19 +209,17 @@ foam.CLASS({
   return blob;
 }
 
-this.setup();
-
 HashingOutputStream os = null;
 
 try {
   long size = blob.getSize();
-  File tmp = allocateTmp(1);
+  File tmp = allocateTmp();
   os = new HashingOutputStream(new FileOutputStream(tmp));
   blob.read(os, 0, size);
   os.close();
 
   String digest = new String(Hex.encode(os.digest()));
-  File dest = new File(sha256_ + File.separator + digest);
+  File dest = getStorage().sub("sha256").get(digest);
   tmp.renameTo(dest);
 
   IdentifiedBlob result = new IdentifiedBlob();
@@ -235,12 +236,11 @@ try {
       name: 'find_',
       javaCode:
 `try {
-  this.setup();
   if ( ((String) id).indexOf(File.separatorChar) != -1 ) {
     throw new RuntimeException("Invalid file name");
   }
 
-  File file = new File(getSha256() + File.separator + id);
+  File file = getStorage().sub("sha256").get((String)id);
   if ( ! file.exists() ) {
     throw new RuntimeException("File does not exist");
   }
@@ -261,13 +261,7 @@ try {
     {
       name: 'setup',
       javaReturns: 'void',
-      javaCode:
-`if ( this.getIsSet() )
-  return;
-ensureDir(getRoot());
-ensureDir(getTmp());
-ensureDir(getSha256());
-setIsSet(true);`
+      javaCode: 'return;'
     },
     {
       name: 'ensureDir',
@@ -291,19 +285,18 @@ if ( ! parsed.mkdirs() ) {
     {
       name: 'allocateTmp',
       javaReturns: 'File',
-      args: [
-        {
-          name: 'name',
-          javaType: 'long'
-        }
-      ],
-      javaCode:
-`String path = this.tmp_ + File.separator + (name++);
-File file = new File(path);
-if ( file.exists() ) {
-  return allocateTmp(name);
+      javaCode: `File tmp = null;
+try {
+  File tmpdir = getStorage().get("tmp");
+  if ( ! tmpdir.isDirectory() ) {
+    tmpdir.mkdir();
+  }
+
+  tmp = java.io.File.createTempFile("blob", null, tmpdir);
+} catch(java.io.IOException e) {
+  throw new RuntimeException(e);
 }
-return file;`
+return tmp;`
     }
   ]
 });
