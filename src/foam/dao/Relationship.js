@@ -151,10 +151,8 @@ foam.CLASS({
       var relationship  = this;
       var sourceModel   = this.sourceModel;
       var targetModel   = this.targetModel;
-      var junctionModel = this.junctionModel;
-      var source        = this.lookup(sourceModel);
-      var target        = this.lookup(targetModel);
-      var junction      = this.lookup(junctionModel, true);
+      var source        = foam.__context__.lookup(sourceModel);
+      var target        = foam.__context__.lookup(targetModel);
       var sourceDAOKey  = this.sourceDAOKey;
       var targetDAOKey  = this.targetDAOKey;
 
@@ -177,6 +175,9 @@ foam.CLASS({
           targetDAOKey: sourceDAOKey
         }).copyFrom(this.targetProperty);
       } else { /* cardinality === '*.*' */
+        var junctionModel = this.junctionModel;
+        var junction      = this.lookup(junctionModel, true);
+
         if ( ! junction ) {
           var name = this.junctionModel.substring(
             this.junctionModel.lastIndexOf('.') + 1);
