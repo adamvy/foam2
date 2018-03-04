@@ -14,6 +14,9 @@ foam.CLASS({
         url: this.root + '/' + id.replace(/\./g, '/') + '.js'
       }).send().then(function(payload) {
         return payload.resp.text();
+      }, function(e) {
+        if ( e.status == 404 ) return null;
+        throw e;
       })
     },
   ]
