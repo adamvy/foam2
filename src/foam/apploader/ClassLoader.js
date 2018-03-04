@@ -138,8 +138,7 @@ have multiple classloaders running alongside eachother`
 
             return this.buildClass_(m, path);
           }.bind(this), function(e) {
-            console.error("Error", e);
-            throw new Error("Failed to load class " + id);
+            throw new Error("Failed to load class " + id + ' caused by: ' + e.stack);
           });
         }
 
@@ -167,6 +166,13 @@ have multiple classloaders running alongside eachother`
               { name: 'path', of: 'Array' } ],
       code: function(model, path) {
         var self = this;
+
+        if ( model.flags.length &&
+             ! model.flags.some(function(p) { return global.FOAM_FLAGS[p]; }) ) {
+          console.warn("Refusing to load class", model.id, "because its flags", model.flags, "do not match the enabled foam flags", global.FOAM_FLAGS);
+          return null;
+        }
+
 
         path = path.concat(model);
 

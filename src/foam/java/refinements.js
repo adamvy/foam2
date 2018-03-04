@@ -239,6 +239,8 @@ foam.LIB({
       var axioms = this.getOwnAxioms();
 
       for ( var i = 0 ; i < axioms.length ; i++ ) {
+        if ( axioms.flags && axiom.flags.length && ! axioms.flags.some(function(f) { return global.FOAM_FLAGS.indexOf(f) == -1; }) )
+          continue;
         axioms[i].buildJavaClass && axioms[i].buildJavaClass(cls, this);
       }
 
