@@ -133,72 +133,72 @@ foam.CLASS({
       };
 
       classes.then(function(conf) {
-        var classes = seq(conf.classes, self.generateClass.bind(self));
-        var skeletons = seq(conf.skeletons, self.generateSkeleton.bind(self));
-        var proxies = seq(conf.proxies, self.generateProxy.bind(self));
+        var classes = conf.classes;
+        var skeletons = conf.skeletons;
+        var proxies = conf.proxies;
 
-        loop(join(join(classes, skeletons), proxies))();
+        var p = [];
+
+        for ( var i = 0 ; i < classes.length ; i++ ) {
+          p.push(self.classloader.load(classes[i]).then(function(cls) {
+            cls.getAxiomsByClass(foam.core.Requires).forEach(function(r) {
+              if ( ( ! r.flags || r.flags.indexOf('java') != -1 ) && r.javaPath ) classes.push(r.javaPath);
+            });
+            cls.getAxiomsByClass(foam.core.Implements).forEach(function(r) {
+              if ( ! r.flags || r.flags.indexOf('java') != -1 ) classes.push(r.path);
+            });
+            if ( cls.model_.extends ) classes.push(cls.model_.extends);
+          }, (function(id) {
+            return function(e) {
+              console.warn("Skipping class that failed to load", id, e);
+            };
+          })(classes[i])));
+        }
+
+        skeletons.forEach(function(s) { p.push(self.classloader.load(s)); });
+        proxies.forEach(function(s) { p.push(self.classloader.load(s)); });
+
+        return Promise.all(p).then(function() {
+          classes.forEach(self.generateClass.bind(self));
+          skeletons.forEach(self.generateSkeleton.bind(self));
+          proxies.forEach(self.generateProxy.bind(self));
+        });
       });
     },
-    function generateClass(cls, done) {
-      console.log("Generate:", cls);
-      done = done || {};
-      if ( done[cls] ) return Promise.resolve();
-      done[cls] = true;
-
-      if ( this.internalBlacklist.indexOf(cls) != -1 ) {
-        return Promise.resolve();
-      }
-
-      var self = this;
-      return this.classloader.load(cls).then(function(cls) {
-        var a = [].concat(
-          cls.getAxiomsByClass(foam.core.Requires).map(function(r) {
-            return r.javaPath ? self.generateClass(r.javaPath, done) : Promise.resolve();
-          }),
-          cls.getAxiomsByClass(foam.core.Implements).map(function(r) {
-            return self.generateClass(r.path, done);
-          }),
-          cls.model_.extends ? self.generateClass(cls.model_.extends, done) : Promise.resolve(),
-          self.generateClass_(cls, done));
-        return Promise.all(a);
-      });
+    function generateClass(cls) {
+      if ( this.internalBlacklist.indexOf(cls) != -1 ) return;
+      this.generateClass_(foam.lookup(cls));
     },
     function generateClass_(cls) {
-      console.log("generate_", cls.id);
       return this.fileDAO.put(this.File.create({
         path: cls.id.replace(/\./g, '/') + '.java',
         contents: cls.buildJavaClass().toJavaSource()
       }));
     },
     function generateSkeleton(cls) {
-      var self = this;
-      return this.classloader.load(cls).then(function(cls) {
-        return self.generateClass_(foam.java.Skeleton.create({ of: cls }));
-      });
+      cls = foam.lookup(cls);
+      this.generateClass_(foam.java.Skeleton.create({ of: cls }));
     },
-    function generateProxy(cls) {
-      var self = this;
-      return this.classloader.load(cls).then(function(intf) {
-        var proxy = self.__context__.lookup(intf.package + '.Proxy' + intf.name, true);
+    function generateProxy(intf) {
+      intf = foam.lookup(intf);
 
-        if ( proxy ) return self.generateClass_(proxy);
+      var proxy = this.__context__.lookup(intf.package + '.Proxy' + intf.name, true);
 
-        proxy = foam.core.Model.create({
-          package: intf.package,
-          name: 'Proxy' + intf.name,
-          implements: [intf.id],
-          properties: [
-            {
-              class: 'Proxy',
-              of: intf.id,
-              name: 'delegate'
-            }
-          ]
-        });
+      if ( proxy ) return this.generateClass_(proxy);
 
-        return self.generateClass_(proxy.buildClass());
+      proxy = foam.core.Model.create({
+        package: intf.package,
+        name: 'Proxy' + intf.name,
+        implements: [intf.id],
+        properties: [
+          {
+            class: 'Proxy',
+            of: intf.id,
+            name: 'delegate'
+          }
+        ]
       });
+      return this.generateClass_(proxy.buildClass());
     }
   ]
 });
