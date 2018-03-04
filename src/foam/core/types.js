@@ -316,7 +316,7 @@ foam.CLASS({
           if ( c ) {
             this.instance_[prop.name] = c;
           } else {
-            console.error('Unknown class: ' + c);
+            console.error('Unknown class: ' + this.instance_[prop.name]);
           }
         }
 
