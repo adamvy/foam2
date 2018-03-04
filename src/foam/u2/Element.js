@@ -1216,6 +1216,8 @@ foam.CLASS({
 
     function replaceChild(newE, oldE) {
       /* Replace current child oldE with newE. */
+      if ( newE === oldE ) return;
+
       var cs = this.childNodes;
       for ( var i = 0 ; i < cs.length ; ++i ) {
         if ( cs[i] === oldE ) {
