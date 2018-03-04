@@ -887,7 +887,7 @@ foam.CLASS({
     function whileLoaded(f) {
       this.onLoad(function() {
         var s = f();
-        this.onUnload(s);
+        this.onUnload(function() { s.detach(); });
       }.bind(this));
     },
 
