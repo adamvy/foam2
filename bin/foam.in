@@ -1,0 +1,100 @@
+#!@BASH_REAL@
+
+@NODE@ - "$@" <<EOF
+process.on('unhandledRejection', function(e) {
+  console.error("ERROR: Unhandled promise rejection ", e);
+  process.exit(1);
+});
+
+process.on('unhandledException', function(e) {
+  console.error("ERROR: Unhandled Exception:", e);
+  process.exit(1);
+});
+
+var bootclasspathFlag = false;
+var classpathFlag = false;
+var classFlag = false;
+var fileFlag = false;
+var javaFlag = true;
+var debugFlag = true;
+var jsFlag = false;
+var classpath;
+var bootclasspath = '@abs_top_srcdir@/src/';
+var cls;
+var file;
+
+for ( var arg, i = 2; arg = process.argv[i]; i++ ) {
+  if ( arg == '--classpath' ) {
+    classpathFlag = true;
+  } else if ( arg == '--bootclasspath' ) {
+    bootclasspathFlag = true;
+  } else if ( arg == '--file' ) {
+    fileFlag = true;
+  } else if ( arg == '--nojava' ) {
+    javaFlag = false;
+  } else if ( arg == '--nodebug' ) {
+    debugFlag = false;
+  } else if ( arg == '--debug' ) {
+    debugFlag = true;
+  } else if ( arg == '--js' ) {
+    jsFlag = true;
+  } else if ( classpathFlag ) {
+    classpath = arg;
+    classpathFlag = false;
+  } else if ( bootclasspathFlag ) {
+    bootclasspath = arg;
+    bootclasspathFlag = false;
+  } else if ( fileFlag ) {
+    file = arg;
+    fileFlag = false;
+  } else {
+    break;
+  }
+}
+
+global.FOAM_FLAGS = {
+  java: javaFlag,
+  debug: debugFlag,
+  js: false
+};
+
+require(bootclasspath + 'foam.js');
+
+if ( classpath ) {
+  classpath.split(':').forEach(function(cp) {
+    foam.__context__.classloader.addClassPath(cp);
+  });
+}
+
+cls = process.argv[i++];
+
+var args = {};
+var arg;
+var flag = false;
+
+for ( ; i < process.argv.length ; i++ ) {
+  var param = process.argv[i];
+
+  if ( flag ) {
+    args[arg] = process.argv[i];
+    flag = false;
+  } else {
+    if ( ! param.startsWith('--') ) {
+      console.error("Unknown argument", param);
+      console.error("Expected argument with --argname or --argname=value syntax.");
+      process.exit(1);
+    }
+    if ( param.indexOf('=') != -1 ) {
+      args[param.substring(2, param.indexOf('='))] = param.substring(param.indexOf('=') + 1);
+    } else {
+      arg = process.argv[i].substring(2);
+      flag = true;
+    }
+  }
+}
+
+foam.__context__.classloader.load(cls).then(function(cls) {
+  var obj = cls.create(args);
+  obj.execute && obj.execute();
+});
+EOF
