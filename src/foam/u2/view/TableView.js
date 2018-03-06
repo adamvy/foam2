@@ -299,7 +299,7 @@ foam.CLASS({
         var of = this.of;
         if ( ! of ) return [];
 
-        return columns.map(function(p) {
+        var cols = columns.map(function(p) {
           var c = typeof p == 'string' ?
             of.getAxiomByName(p) :
             p ;
@@ -310,6 +310,11 @@ foam.CLASS({
 
           return c;
         }).filter(function(c) { return c; });
+
+        if ( this.__context__.lookAndFeel )
+          cols = this.__context__.lookAndFeel.tableColumns(this, cols, of);
+
+        return cols;
       }
     },
     {
