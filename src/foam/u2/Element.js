@@ -887,6 +887,9 @@ foam.CLASS({
     function whileLoaded(f) {
       this.onLoad(function() {
         var s = f();
+        if ( ! s ) {
+          console.warn("whileLoaded() function did not return a subscription:", f.toString());
+        }
         this.onUnload(function() { s.detach(); });
       }.bind(this));
     },
