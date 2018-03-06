@@ -2316,6 +2316,10 @@ foam.CLASS({
 
   methods: [
     function toE(args, X) {
+      if ( X.lookAndFeel && X.lookAndFeel.actionView ) {
+        return X.lookAndFeel.actionView(this, args, X);
+      }
+
       var view = foam.u2.ViewSpec.createView(
         { class: 'foam.u2.ActionView', action: this }, args, this, X);
 
