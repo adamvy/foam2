@@ -494,6 +494,10 @@ foam.CLASS({
       name: 'targetDAOKey'
     },
     {
+      name: 'visibility',
+      value: 'EDIT_ONLY'
+    },
+    {
       name: 'expression',
       factory: function() {
         // Again, delay resolving the target property until as late as
@@ -539,6 +543,10 @@ foam.CLASS({
     {
       class: 'Class',
       name: 'junction'
+    },
+    {
+      name: 'visibility',
+      value: 'EDIT_ONLY'
     },
     {
       class: 'Class',
