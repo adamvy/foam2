@@ -2235,14 +2235,9 @@ foam.CLASS({
   `,
 
   exports: [ 'data' ],
+  imports: [ 'controllerMode?' ],
 
   properties: [
-    {
-      class: 'Enum',
-      of: 'foam.u2.ControllerMode',
-      name: 'controllerMode',
-      factory: function() { return this.__context__.controllerMode || foam.u2.ControllerMode.CREATE; }
-    },
     {
       name: 'data',
       attribute: true
@@ -2262,6 +2257,8 @@ foam.CLASS({
       attribute: true,
       postSet: function(_, mode) { this.updateMode_(mode); },
       expression: function(visibility, controllerMode) {
+        controllerMode = controllerMode || foam.u2.ControllerMode.CREATE;
+
         if ( visibility === foam.u2.Visibility.RO ) {
           return foam.u2.DisplayMode.RO;
         }
@@ -2269,6 +2266,11 @@ foam.CLASS({
         if ( visibility === foam.u2.Visibility.FINAL &&
              controllerMode !== foam.u2.ControllerMode.CREATE ) {
           return foam.u2.DisplayMode.RO;
+        }
+
+        if ( visibility === foam.u2.Visibility.EDIT_ONLY &&
+             controllerMode === foam.u2.ControllerMode.CREATE ) {
+          return foam.u2.DisplayMode.HIDDEN;
         }
 
         return controllerMode === foam.u2.ControllerMode.VIEW ?

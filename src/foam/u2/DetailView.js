@@ -28,8 +28,7 @@ foam.CLASS({
   ],
 
   exports: [
-    'currentData as data',
-    'controllerMode'
+    'currentData as data'
   ],
 
   axioms: [
