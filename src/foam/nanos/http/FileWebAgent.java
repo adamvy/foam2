@@ -14,7 +14,8 @@ import java.io.*;
 import java.util.HashMap;
 
 public class FileWebAgent
-    implements WebAgent, NSpecAware
+  extends foam.core.ContextAwareSupport
+  implements WebAgent, NSpecAware
 {
   protected static final int                     BUFFER_SIZE = 4096;
   protected static final String                  DEFAULT_EXT = "application/octet-stream";
@@ -45,7 +46,7 @@ public class FileWebAgent
   }
 
   public FileWebAgent(String path) {
-    this(path, System.getProperty("user.dir"));
+    this(path, null);
   }
 
   public FileWebAgent(String path, String cwd) {
@@ -55,6 +56,10 @@ public class FileWebAgent
 
   @Override
   public void execute(X x) {
+    if ( cwd_ == null ) {
+      cwd_ = (String)(getX().get("webroot"));
+    }
+
     HttpServletRequest req = x.get(HttpServletRequest.class);
     HttpServletResponse resp = x.get(HttpServletResponse.class);
 
@@ -63,9 +68,9 @@ public class FileWebAgent
 
     try {
       path = req.getRequestURI().replaceFirst("/?service/" + nspec_.getName() + "/?", "") + path_;
-      File src = new File(SafetyUtil.isEmpty(path) ? "./" : path);
+      File src = new File(cwd_, SafetyUtil.isEmpty(path) ? "./" : path);
 
-      boolean pathStartsWithCwd = src.getAbsolutePath().startsWith(cwd_);
+      boolean pathStartsWithCwd = src.getCanonicalPath().startsWith(cwd_);
       if ( ! pathStartsWithCwd ) {
         throw new FileNotFoundException("File not found: " + path);
       }

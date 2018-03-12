@@ -25,12 +25,18 @@ public class Boot {
   protected X   root_ = new ProxyX();
 
   public Boot() {
-    this("");
+    this("", "");
   }
 
-  public Boot(String datadir) {
-    root_.put(foam.nanos.fs.Storage.class,
-        new foam.nanos.fs.Storage(datadir));
+  public Boot(String datadir, String webroot) {
+    try {
+      root_.
+        put(foam.nanos.fs.Storage.class,
+            new foam.nanos.fs.Storage(datadir)).
+        put("webroot", new java.io.File(webroot).getCanonicalPath());
+    } catch ( java.io.IOException e ) {
+      throw new RuntimeException(e);
+    }
 
     // Used for all the services that will be required when Booting
     serviceDAO_ = new JDAO(((foam.core.ProxyX) root_).getX(), NSpec.getOwnClassInfo(), "services");
@@ -97,14 +103,21 @@ public class Boot {
     System.out.println("Starting Nanos Server");
 
     boolean datadirFlag = false;
+    boolean webrootFlag = false;
 
     String datadir = "";
+    String webroot = "";
     for ( int i = 0 ; i < args.length ; i++ ) {
       String arg = args[i];
 
       if ( datadirFlag ) {
         datadir = arg;
         datadirFlag = false;
+      } else if ( webrootFlag ) {
+        webroot = arg;
+        webrootFlag = false;
+      } else if ( arg.equals("--webroot") ) {
+        webrootFlag = true;
       } else if ( arg.equals("--datadir") ) {
         datadirFlag = true;
       } else {
@@ -114,7 +127,8 @@ public class Boot {
     }
 
     System.out.println("Datadir is " + datadir);
+    System.out.println("Webroot is " + webroot);
 
-    new Boot(datadir);
+    new Boot(datadir, webroot);
   }
 }
