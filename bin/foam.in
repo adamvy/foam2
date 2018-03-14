@@ -19,7 +19,7 @@ var javaFlag = true;
 var debugFlag = true;
 var jsFlag = false;
 var classpath;
-var bootclasspath = '@abs_top_srcdir@/src/';
+var bootclasspath = '@BOOTCLASSPATH@';
 var cls;
 var file;
 

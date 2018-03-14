@@ -42,7 +42,7 @@
       }
     }
 
-    path = path.substring(0, path.lastIndexOf('src/')+4);
+    path = path.substring(0, path.lastIndexOf('/')+1);
 
     if ( typeof global !== 'undefined' ) global.FOAM_ROOT = path;
     if ( typeof window !== 'undefined' ) window.FOAM_ROOT = path;
@@ -55,7 +55,7 @@
 
   function loadServer() {
     var caller = flags.src || __filename;
-    var path = caller.substring(0, caller.lastIndexOf('src/')+4);
+    var path = caller.substring(0, caller.lastIndexOf('/')+1);
 
     if ( typeof global !== 'undefined' ) global.FOAM_ROOT = path;
 
