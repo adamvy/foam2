@@ -35,7 +35,7 @@ foam.CLASS({
 
             context.foam.GENMODEL = function(m) {
               json = m;
-              json.__genmode__ = true;
+              json.__genmodel__ = true;
             };
 
             context.foam.CLASS = function(m) {
