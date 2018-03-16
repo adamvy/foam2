@@ -327,3 +327,6 @@ install-sbin-scripts: $(foreach script,$(SCRIPTS),install-sbin-$(script))
 install-data: install-web-data
 
 install-web-data: $(foreach jar,$(lib_JARS),install-web-data-$(jar))
+
+Makefile: config.status $(srcdir)/Makefile.in
+	./config.status
