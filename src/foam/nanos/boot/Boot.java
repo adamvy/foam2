@@ -22,21 +22,19 @@ import static foam.mlang.MLang.EQ;
 
 public class Boot {
   protected DAO serviceDAO_;
-  protected X   root_ = new ProxyX();
+  protected X   root_;
 
   public Boot() {
-    this("", "");
+    this(foam.core.EmptyX.instance());
   }
 
-  public Boot(String datadir, String webroot) {
-    try {
-      root_.
-        put(foam.nanos.fs.Storage.class,
-            new foam.nanos.fs.Storage(datadir)).
-        put("webroot", new java.io.File(webroot).getCanonicalPath());
-    } catch ( java.io.IOException e ) {
-      throw new RuntimeException(e);
-    }
+  public Boot(foam.core.X x) {
+    root_ = new ProxyX(x);
+
+    root_.
+      put(foam.nanos.fs.Storage.class,
+          new foam.nanos.fs.Storage((String)x.get("--datadir")));
+
 
     // Used for all the services that will be required when Booting
     serviceDAO_ = new JDAO(((foam.core.ProxyX) root_).getX(), NSpec.getOwnClassInfo(), "services");
@@ -102,33 +100,27 @@ public class Boot {
   {
     System.out.println("Starting Nanos Server");
 
-    boolean datadirFlag = false;
-    boolean webrootFlag = false;
+    foam.core.X x = foam.core.EmptyX.instance();
 
-    String datadir = "";
-    String webroot = "";
+    boolean valueFlag = false;
+    String argName = null;
     for ( int i = 0 ; i < args.length ; i++ ) {
       String arg = args[i];
-
-      if ( datadirFlag ) {
-        datadir = arg;
-        datadirFlag = false;
-      } else if ( webrootFlag ) {
-        webroot = arg;
-        webrootFlag = false;
-      } else if ( arg.equals("--webroot") ) {
-        webrootFlag = true;
-      } else if ( arg.equals("--datadir") ) {
-        datadirFlag = true;
-      } else {
-        System.err.println("Unknown argument " + arg);
-        System.exit(1);
+      if ( valueFlag ) {
+        x = x.put(argName, arg);
+        valueFlag = false;
+      } else if ( arg.startsWith("--") ) {
+        if ( arg.indexOf("=") == -1 ) {
+          argName = arg;
+          valueFlag = true;
+          continue;
+        }
+        int end = arg.indexOf("=");
+        argName = arg.substring(0, end);
+        x = x.put(argName, arg.substring(end + 1));
+        continue;
       }
     }
-
-    System.out.println("Datadir is " + datadir);
-    System.out.println("Webroot is " + webroot);
-
-    new Boot(datadir, webroot);
+    new Boot(x);
   }
 }
