@@ -78,8 +78,6 @@ public class NanoRouter
   }
 
   protected WebAgent getWebAgent(NSpec spec, Object service) {
-    if ( spec == null ) return null;
-
     if ( ! handlerMap_.containsKey(spec.getName()) ) {
       handlerMap_.put(spec.getName(), createWebAgent(spec, service));
     }
@@ -88,56 +86,31 @@ public class NanoRouter
   }
 
   protected WebAgent createWebAgent(NSpec spec, Object service) {
-    informService(service, spec);
-
-    if ( spec.getServe() ) {
-      try {
-        Class cls = spec.getBoxClass() != null && spec.getBoxClass().length() > 0 ?
-            Class.forName(spec.getBoxClass()) :
-            DAOSkeleton.class ;
-        Skeleton skeleton = (Skeleton) cls.newInstance();
-
-        // TODO: create using Context, which should do this automatically
-        if ( skeleton instanceof ContextAware ) ((ContextAware) skeleton).setX(getX());
-
-        informService(skeleton, spec);
-
-        skeleton.setDelegateObject(service);
-
-        service = new ServiceWebAgent(skeleton, spec.getAuthenticate());
-        informService(service, spec);
-      } catch (IllegalAccessException | InstantiationException | ClassNotFoundException ex) {
-        ex.printStackTrace();
-        ((Logger) getX().get("logger")).error("Unable to create NSPec servlet: " + spec.getName());
-      }
-    } else {
+    if ( ! spec.getServe() ) {
       if ( service instanceof WebAgent && spec.getAuthenticate() ) {
-        service = new AuthWebAgent("service.run." + spec.getName(), (WebAgent) service);
+        return new AuthWebAgent("service.run." + spec.getName(), (WebAgent) service);
       }
     }
 
-/*
-    if ( service instanceof WebAgent ) {
-      service = new WebAgentServlet((WebAgent) service);
-      informService(service, spec);
+    if ( service instanceof WebAgent ) return (WebAgent)service;
+
+    try {
+      Class cls = spec.getBoxClass() != null && spec.getBoxClass().length() > 0 ?
+        Class.forName(spec.getBoxClass()) :
+        DAOSkeleton.class ;
+
+      Skeleton skeleton = (Skeleton)(getX().create(cls));
+      skeleton.setDelegateObject(service);
+      return new ServiceWebAgent(skeleton, spec.getAuthenticate());
+    } catch (ClassNotFoundException ex) {
+      ex.printStackTrace();
+      ((Logger) getX().get("logger")).error("Unable to create NSPec servlet: " + spec.getName());
+      return null;
     }
-    */
-
-    if ( service instanceof WebAgent ) return (WebAgent) service;
-
-    Logger logger = (Logger) getX().get("logger");
-    logger.error(this.getClass(), spec.getName() + " does not have a WebAgent.");
-    return null;
-  }
-
-  protected void informService(Object service, NSpec spec) {
-    if ( service instanceof ContextAware ) ((ContextAware) service).setX(getX());
-    if ( service instanceof NSpecAware   ) ((NSpecAware) service).setNSpec(spec);
   }
 
   @Override
   public void start() {
-
   }
 
   @Override

@@ -28,6 +28,7 @@ public class NSpecFactory
 
       if ( ns instanceof ContextAware ) ((ContextAware) ns).setX(x_.getX());
       if ( ns instanceof NanoService  ) ((NanoService)  ns).start();
+      if ( ns instanceof NSpecAware   ) ((NSpecAware)   ns).setNSpec(spec_);
     } catch (Throwable t) {
       // TODO: LOG
       t.printStackTrace();
