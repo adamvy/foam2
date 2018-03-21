@@ -663,6 +663,11 @@ foam.LIB({
           a.splice(i, 1);
         }
       }
+    },
+    function find(a, p) {
+      for ( var i = 0 ; i < a.length ; i++ ) {
+        if ( p(a[i]) ) return a[i];
+      }
     }
   ]
 });
