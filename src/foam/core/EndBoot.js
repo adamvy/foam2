@@ -31,12 +31,11 @@ foam.core.Property.SHADOW_MAP = {
   expression: [ 'value' ]
 };
 
-
 /** Add new Axiom types (Implements, Constants, Topics, Properties, Methods and Listeners) to Model. */
 foam.CLASS({
   refines: 'foam.core.Model',
 
-  properties: [
+  axioms_: [
     {
       class: 'AxiomArray',
       of: 'Property',
@@ -88,6 +87,45 @@ foam.CLASS({
 
 foam.boot.phase3();
 
+foam.CLASS({
+  package: 'foam.core',
+  name: 'AnonymousAxiom',
+  documentation: 'Wraps plain JS objects that look like axioms into FObjects',
+  properties: [
+    {
+      name: 'name',
+      factory: function() {
+        return this.axiom && this.axiom.name ? this.axiom.name :
+          'AnonymousAxiom' + foam.next$UID();
+      }
+    },
+    {
+      name: 'axiom',
+    },
+  ],
+  methods: [
+    function installInClass(cls) {
+      if ( this.axiom && this.axiom.installInClass ) this.axiom.installInClass(cls);
+    },
+    function installInProto(proto) {
+      if ( this.axiom && this.axiom.installInProto ) this.axiom.installInProto(proto);
+    }
+  ]
+});
+
+foam.CLASS({
+  refines: 'foam.core.Model',
+  properties: [
+    {
+      class: 'AxiomArray',
+      name: 'axioms',
+      of: 'foam.core.AnonymousAxiom',
+      adaptArrayElement: function(e) {
+        return foam.core.AnonymousAxiom.create({ axiom: e });
+      }
+    }
+  ]
+});
 
 foam.CLASS({
   refines: 'foam.core.FObject',
@@ -165,52 +203,6 @@ foam.CLASS({
 });
 
 foam.boot.end();
-
-
-/**
-  Refine foam.core.Property to add 'transient' support.
-
-  A transient Property is not intended to be persisted
-  or transfered over the network.
-
-  Ex. A computed Property could be made transient to avoid
-  wasting disk space or network bandwidth.
-
-  For finer control, there are also separate properties called
-  'networkTransient' and 'storageTransient', which default to
-  the value of 'transient' if not explicitly set.
-
-  A networkTransient field is not marshalled over network calls.
-  foam.json.Network does not encode networkTransient fields.
-
-  A storageTransient field is not stored to persistent storage.
-  foam.json.Storage does not encode storageTransient fields.
- */
-foam.CLASS({
-  refines: 'foam.core.Property',
-
-  properties: [
-    {
-      class: 'Boolean',
-      name: 'transient'
-    },
-    {
-      class: 'Boolean',
-      name: 'networkTransient',
-      expression: function(transient) {
-        return transient;
-      }
-    },
-    {
-      class: 'Boolean',
-      name: 'storageTransient',
-      expression: function(transient) {
-        return transient;
-      }
-    }
-  ]
-});
-
 
 /**
  * Replace foam.CLASS() with a lazy version which only

@@ -22,8 +22,9 @@ foam.CLASS({
 
   documentation: 'A Class Model (description).',
 
-  properties: [
+  axioms_: [
     {
+      class: 'Property',
       name: 'id',
       hidden: true,
       transient: true,
@@ -31,46 +32,52 @@ foam.CLASS({
         return this.package ? this.package + '.' + this.name : this.name;
       }
     },
-    'package',
-    'abstract',
-    'name',
     {
+      class: 'Property',
+      name: 'package'
+    },
+    {
+      class: 'Property',
+      name: 'abstract'
+    },
+    {
+      class: 'Property',
+      name: 'name'
+    },
+    {
+      class: 'Property',
+      name: 'axioms_',
+      documentation: 'At their core, models are mostly just a collection of axioms.',
+      factory: function() { return []; }
+    },
+    {
+      class: 'Property',
       name: 'flags',
       factory: function() { return []; }
     },
     {
+      class: 'Property',
       name: 'label',
       expression: function(name) { return foam.String.labelize(name); }
     },
-    [ 'extends', 'FObject' ],
-    'refines',
-    { name: 'documentation', adapt: function(_, d) { return typeof d === 'function' ? foam.String.multiline(d).trim() : d; } },
     {
-      // List of all axioms, including methods, properties, listeners,
-      // etc. and 'axioms'.
-      name: 'axioms_',
-      transient: true,
-      hidden: true,
-      factory: function() { return []; }
+      class: 'Property',
+      name: 'extends',
+      value: 'FObject'
     },
     {
-      // List of extra axioms. Is added to axioms_.
-      name: 'axioms',
-      hidden: true,
-      factory: function() { return []; },
-      postSet: function(_, a) { this.axioms_.push.apply(this.axioms_, a); }
+      class: 'Property',
+      name: 'refines'
     },
     {
-      // Is upgraded to an AxiomArray later.
-      of: 'Property',
-      name: 'properties'
+      class: 'Property',
+      name: 'documentation',
+      adapt: function(_, d) { return typeof d === 'function' ? foam.String.multiline(d).trim() : d; }
     },
     {
-      // Is upgraded to an AxiomArray later.
-      of: 'Method',
-      name: 'methods'
+      class: 'Method',
+      name: 'buildClass',
+      code: foam.boot.buildClass
     }
-  ],
-
-  methods: [ foam.boot.buildClass ]
+  ]
 });
