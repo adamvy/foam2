@@ -155,7 +155,7 @@ foam.CLASS({
     'foam.core.IDAlias',
     'foam.core.MultiPartID'
   ],
-  propreties: [
+  properties: [
     {
       name: 'name',
       value: 'id'

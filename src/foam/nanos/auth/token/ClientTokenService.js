@@ -11,7 +11,7 @@ foam.CLASS({
   implements: [
     'foam.nanos.auth.token.TokenService',
   ],
-  import: [
+  imports: [
     'registry'
   ],
   properties: [
