@@ -668,12 +668,6 @@ foam.LIB({
       for ( var i = 0 ; i < a.length ; i++ ) {
         if ( p(a[i]) ) return a[i];
       }
-    },
-    function indexOf(a, p) {
-      for ( var i = 0 ; i < a.length ; i++ ) {
-        if ( p(a[i]) ) return i;
-      }
-      return -1;
     }
   ]
 });

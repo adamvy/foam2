@@ -149,46 +149,17 @@ foam.CLASS({
 });
 
 foam.CLASS({
-  package: 'foam.core',
-  name: 'IDSupport',
-  requires: [
-    'foam.core.IDAlias',
-    'foam.core.MultiPartID'
-  ],
-  properties: [
-    {
-      name: 'name',
-      value: 'id'
-    },
-    {
-      name: 'ids',
-    }
-  ],
-  methods: [
-    function installInClass(cls) {
-      foam.assert(foam.Array.isInstance(this.ids), 'Ids must be an array.');
-      foam.assert(this.ids.length, 'Ids must contain at least one property.');
-
-      if ( this.ids.length == 1 ) cls.installAxiom(this.IDAlias.create({ propName: this.ids[0] }));
-      else cls.installAxiom(this.MultiPartID.create({ propNames: this.ids }));
-    }
-  ]
-});
-
-foam.CLASS({
   refines: 'foam.core.Model',
   properties: [
     {
       name: 'ids',
-      setter: function(value) {
-        var a = foam.Array.find(this.axioms_, function(a) { return foam.core.IDSupport.isInstance(a); });
-        if ( ! a ) this.axioms_.push(a = foam.core.IDSupport.create());
-        a.ids = value;
-      },
-      getter: function() {
-        var a = foam.Array.find(this.axioms_, function(a) { return foam.core.IDSupport.isInstance(a); });
-        if ( ! a ) return undefined;
-        return a.ids;
+      postSet: function(_, ids) {
+        foam.assert(foam.Array.isInstance(ids), 'Ids must be an array.');
+        foam.assert(ids.length, 'Ids must contain at least one property.');
+
+        // Don't build MultiPartID property if the id is not multi part.
+        if ( ids.length == 1 ) this.axioms_.push(foam.core.IDAlias.create({ propName: ids[0] }));
+        else this.axioms_.push(foam.core.MultiPartID.create({propNames: ids}));
       }
     }
   ]

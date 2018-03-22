@@ -20,16 +20,14 @@ foam.CLASS({
   name: 'AxiomArray',
   extends: 'Property',
 
-  documentation: 'An Array of Axioms (used by Model).',
+  documentation: 'An Array of Axioms (used by Model) whose elements are added to this.axioms_.',
 
-  axioms_: [
+  properties: [
     {
-      class: 'Property',
       name: 'of',
       required: true
     },
     {
-      class: 'Property',
       name: 'adapt',
       value: function(_, a, prop) {
         if ( ! Array.isArray(a) ) return a;
@@ -47,7 +45,6 @@ foam.CLASS({
       }
     },
     {
-      class: 'Property',
       name: 'assertValue',
       value: function(v, prop) {
         foam.assert(Array.isArray(v),
@@ -68,35 +65,12 @@ foam.CLASS({
       }
     },
     {
-      class: 'Property',
       name: 'adaptArrayElement',
       value: function(a, prop) {
         var of = this.lookup(prop.of);
         return of.isInstance(a) ? a : of.create(a, this);
       }
     },
-    {
-      class: 'Property',
-      name: 'setter',
-      value: function(value, prop) {
-        var of = foam.lookup(prop.of);
-
-        value = prop.adapt.call(this, null, value, prop);
-
-        prop.assertValue.call(this, value, prop);
-
-        this.axioms_ = this.axioms_.filter(function(a) { return ! of.isInstance(a); }).concat(value);
-
-        return value;
-      }
-    },
-    {
-      class: 'Property',
-      name: 'getter',
-      value: function(prop) {
-        var of = foam.lookup(prop.of);
-        return this.axioms_.filter(function(a) { return of.isInstance(a); });
-      }
-    }
+    [ 'postSet', function(_, a) { this.axioms_.push.apply(this.axioms_, a); } ]
   ]
 });

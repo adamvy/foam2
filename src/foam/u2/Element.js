@@ -2365,10 +2365,11 @@ foam.CLASS({
 
   properties: [
     {
-      class: 'AxiomProperty',
+      class: 'String',
       name: 'css',
-      of: 'foam.u2.CSS',
-      propName: 'code'
+      postSet: function(_, code) {
+        this.axioms_.push(foam.u2.CSS.create({code: code}));
+      }
     },
     {
       documentation: `
@@ -2381,16 +2382,16 @@ foam.CLASS({
       }
     },
     {
-      class: 'AxiomProperty',
-      of: 'foam.u2.TableColumns',
-      propName: 'columns',
-      name: 'tableColumns'
+      name: 'tableColumns',
+      postSet: function(_, cs) {
+        this.axioms_.push(foam.u2.TableColumns.create({columns: cs}));
+      }
     },
     {
-      class: 'AxiomProperty',
-      of: 'foam.u2.SearchColumns',
-      propName: 'columns',
-      name: 'searchColumns'
+      name: 'searchColumns',
+      postSet: function(_, cs) {
+        this.axioms_.push(foam.u2.SearchColumns.create({columns: cs}));
+      }
     }
   ]
 });

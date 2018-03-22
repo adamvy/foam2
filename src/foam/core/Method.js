@@ -57,106 +57,93 @@ foam.CLASS({
   package: 'foam.core',
   name: 'AbstractMethod',
 
-  axioms_: [
-    { class: 'Property', name: 'name', required: true },
-    { class: 'Property', name: 'code', required: false },
+  properties: [
+    { name: 'name', required: true },
+    { name: 'code', required: false },
+    'documentation',
+    'returns',
     {
-      class: 'Property',
-      name: 'documentation',
-      adapt: function(_, d) { return typeof d === 'function' ? foam.String.multiline(d).trim() : d; }
-    },
-    {
-      class: 'Property',
-      name: 'returns',
-    },
-    {
-      class: 'Property',
       name: 'args',
       factory: function() { return this.code ? foam.Function.args(this.code) : []; }
-    },
-    {
-      class: 'Method',
-      name: 'override_',
-      documentation: function() {/*
+    }
+  ],
+
+  methods: [
+    /**
       Decorate a method so that it can call the
-      method it overrides with this.SUPER(). */},
-      code: function(proto, method, superMethod) {
-        if ( ! method ) return;
+      method it overrides with this.SUPER().
+    */
+    function override_(proto, method, superMethod) {
+      if ( ! method ) return;
 
-        // Not using SUPER, so just return original method
-        if ( method.toString().indexOf('SUPER') == -1 ) return method;
+      // Not using SUPER, so just return original method
+      if ( method.toString().indexOf('SUPER') == -1 ) return method;
 
-        var superMethod_ = proto.cls_.getSuperAxiomByName(this.name);
-        var super_;
+      var superMethod_ = proto.cls_.getSuperAxiomByName(this.name);
+      var super_;
 
-        if ( ! superMethod_ ) {
-          var name = this.name;
+      if ( ! superMethod_ ) {
+        var name = this.name;
 
-          // This method itself provides a false-posistive because
-          // it references SUPER(), so ignore.
-          if ( name !== 'override_' ) {
-            super_ = function() {
-              console.warn(
+        // This method itself provides a false-posistive because
+        // it references SUPER(), so ignore.
+        if ( name !== 'override_' ) {
+          super_ = function() {
+            console.warn(
                 'Attempted to use SUPER() in',
                 name, 'on', proto.cls_.id, 'but no parent method exists.');
-            };
+          };
 
-            // Generate warning now.
-            super_();
-          }
-        } else {
-          foam.assert(foam.core.AbstractMethod.isInstance(superMethod_),
-                      'Attempt to override non-method', this.name, 'on', proto.cls_.id);
+          // Generate warning now.
+          super_();
+        }
+      } else {
+        foam.assert(foam.core.AbstractMethod.isInstance(superMethod_),
+          'Attempt to override non-method', this.name, 'on', proto.cls_.id);
 
-          // Fetch the super method from the proto, as the super method axiom
-          // may have decorated the code before installing it.
-          super_ = proto.__proto__[this.name];
+        // Fetch the super method from the proto, as the super method axiom
+        // may have decorated the code before installing it.
+        super_ = proto.__proto__[this.name];
+      }
+
+      function SUPER() { return super_.apply(this, arguments); }
+
+      var f = function superWrapper() {
+        var oldSuper = this.SUPER;
+        this.SUPER = SUPER;
+
+        try {
+          return method.apply(this, arguments);
+        } finally {
+          this.SUPER = oldSuper;
         }
 
-        function SUPER() { return super_.apply(this, arguments); }
+        return ret;
+      };
 
-        var f = function superWrapper() {
-          var oldSuper = this.SUPER;
-          this.SUPER = SUPER;
+      foam.Function.setName(f, this.name);
+      f.toString = function() { return method.toString(); };
 
-          try {
-            return method.apply(this, arguments);
-          } finally {
-            this.SUPER = oldSuper;
-          }
-
-          return ret;
-        };
-
-        foam.Function.setName(f, this.name);
-        f.toString = function() { return method.toString(); };
-
-        return f;
-      }
+      return f;
     },
-    {
-      class: 'Method',
-      name: 'createChildMethod_',
-      documentation: function() {/*
+
+    function createChildMethod_(child) {
+      /**
         Template method for use by Method subclasses.
-        (Used by JavaSource.) */},
-      code: function(child) {
-        return child;
-      }
+        (Used by JavaSource.)
+      */
+      return child;
     },
-    {
-      class: 'Method',
-      name: 'installInClass',
-      code: function(cls, superMethod, existingMethod) {
-        var method = this;
 
-        var parent = superMethod;
-        if ( parent && foam.core.AbstractMethod.isInstance(parent) ) {
-          method = parent.createChildMethod_(method);
-        }
+    function installInClass(cls, superMethod, existingMethod) {
+      var method = this;
 
-        cls.axiomMap_[method.name] = method;
+      var parent = superMethod;
+      if ( parent && foam.core.AbstractMethod.isInstance(parent) ) {
+        method = parent.createChildMethod_(method);
       }
+
+      cls.axiomMap_[method.name] = method;
     }
   ]
 });
@@ -167,22 +154,15 @@ foam.CLASS({
   name: 'Method',
   extends: 'foam.core.AbstractMethod',
 
-  axioms_: [
-    {
-      class: 'Method',
-      name: 'installInProto',
-      code: function(proto, superAxiom) {
-        proto[this.name] = this.override_(proto, this.code, superAxiom);
-      }
+  methods: [
+    function installInProto(proto, superAxiom) {
+      proto[this.name] = this.override_(proto, this.code, superAxiom);
     },
-    {
-      class: 'Method',
-      name: 'exportAs',
-      code: function(obj) {
-        var m = obj[this.name];
-        /** Bind the method to 'this' when exported so that it still works. **/
-        return function exportedMethod() { return m.apply(obj, arguments); };
-      }
+
+    function exportAs(obj) {
+      var m = obj[this.name];
+      /** Bind the method to 'this' when exported so that it still works. **/
+      return function exportedMethod() { return m.apply(obj, arguments); };
     }
   ]
 });
