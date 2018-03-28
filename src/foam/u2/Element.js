@@ -1444,7 +1444,12 @@ foam.CLASS({
       return c;
     },
 
-    function end() {
+    function end(opt_name) {
+      if ( opt_name ) {
+        foam.assert(foam.String.toUpperCase(opt_name) === this.nodeName,
+                    'Mis-matched .end() call');
+      }
+
       /* Return this Element's parent. Used to terminate a start(). */
       return this.parentNode;
     },
