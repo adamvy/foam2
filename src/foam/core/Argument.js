@@ -27,6 +27,43 @@ foam.CLASS({
     },
     {
       name: 'of'
+    },
+    {
+      class: 'Boolean',
+      name: 'nullable',
+      value: false
+    },
+    {
+      class: 'Boolean',
+      name: 'optional',
+      value: false
+    }
+  ],
+  methods: [
+    function check(value) {
+      // Don't check if we have no type information.
+      if ( foam.Undefined.isInstance(this.of) ) return true;
+
+      var of = this.of;
+
+      // TODO: Better support for lazy adapts
+      if ( foam.String.isInstance(of) ) {
+        var of = foam.lookup(this.of, true);
+
+        // TODO: Should foam.lookup() find the flyweight classes like foam.Array foam.String ?
+        if ( ! of ) {
+          of = foam[this.of.substring(this.of.indexOf('.') + 1)]
+        }
+      }
+
+      if ( this.nullable && foam.Null.isInstance(value) ) return true;
+      if ( this.optional && foam.Undefined.isInstance(value) ) return true;
+
+      foam.assert(
+        of.isInstance(value),
+        'Type mismatch', value, 'is not instance of', of);
+
+      return true;
     }
   ]
 });

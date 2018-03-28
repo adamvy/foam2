@@ -60,7 +60,7 @@ have multiple classloaders running alongside eachother`
     {
       name: 'load',
       returns: 'Promise',
-      args: [ { class: 'String', name: 'id' } ],
+      args: [ { name: 'id', of: 'foam.String' } ],
       code: function(id) {
         return this.load_(id, []);
       }
@@ -69,7 +69,7 @@ have multiple classloaders running alongside eachother`
       name: 'maybeLoad',
       returns: 'Promise',
       documentation: "Like load, but don't throw if not found.",
-      args: [ { name: 'id', of: 'String' } ],
+      args: [ { name: 'id', of: 'foam.String' } ],
       code: function(id) {
         return this.load(id).catch(function() { return null; });
       }
@@ -77,8 +77,8 @@ have multiple classloaders running alongside eachother`
     {
       name: 'maybeLoad_',
       returns: 'Promise',
-      args: [ { name: 'id', of: 'String' },
-              { name: 'path', of: 'Array' } ],
+      args: [ { name: 'id', of: 'foam.String' },
+              { name: 'path', of: 'foam.Array' } ],
       code: function(id, path) {
         return this.load_(id, path).catch(function() { return null; });
       }
@@ -96,57 +96,56 @@ have multiple classloaders running alongside eachother`
       }
     },
     {
+      name: 'fromModel',
+      args: [ { name: 'model', of: 'foam.core.Model' } ],
+      code: function(model) {
+        return this.pending[model.id] = this.buildClass_(model, []);
+      }
+    },
+    {
       name: 'load_',
       returns: 'Promise',
-      args: [ { class: 'String', name: 'id' },
-              { class: 'StringArray', name: 'path' } ],
+      args: [ { of: 'foam.String', name: 'id' },
+              { of: 'foam.Array', name: 'path' } ],
       code: function(id, path) {
         var self = this;
 
-        if ( foam.String.isInstance(id) ) {
-          // Prevent infinite loops, if we're loading this class as a
-          // dependency to something that this class depends upon then
-          // we can just resolve right away.
-          for ( var i = 0 ; i < path.length ; i++ ) {
-            if ( path[i].id === id ) return Promise.resolve();
-          }
+        // Prevent infinite loops, if we're loading this class as a
+        // dependency to something that this class depends upon then
+        // we can just resolve right away.
+        for ( var i = 0 ; i < path.length ; i++ ) {
+          if ( path[i].id === id ) return Promise.resolve();
+        }
 
-          if ( this.pending[id] ) return this.pending[id];
+        if ( this.pending[id] ) return this.pending[id];
 
-          // Latched models come from when someone defines a class
-          // with foam.CLASS during regular execution (like a script
-          // tag).  We hook into those so that they can still use the
-          // classloader to ensure any dependencies of that model are
-          // loaded before they use it.
-          if ( this.latched[id] ) {
-            var json = this.latched[id];
-            delete this.latched[id];
-            return this.pending[id] = Promise.all(foam.json.references(this.__context__, json)).then(function() {
-              var cls = json.class ? foam.lookup(json.class) : foam.core.Model;
-              return self.modelDeps_(cls.create(json), path);
-            }).then(function() {
-              // Latched models will already be registered in the
-              // context via foam.CLASS as defined in EndBoot.js
-              return foam.lookup(id);
-            });
-          }
-
-          if ( foam.lookup(id, true) ) return Promise.resolve(foam.lookup(id));
-
-          return this.pending[id] = this.modelDAO.find(id).then(function(m) {
-            if ( ! m ) return Promise.reject(new Error('Class Not Found: ' + id));
-
-            return this.buildClass_(m, path);
-          }.bind(this), function(e) {
-            throw new Error("Failed to load class " + id + ' caused by: ' + e.stack);
+        // Latched models come from when someone defines a class
+        // with foam.CLASS during regular execution (like a script
+        // tag).  We hook into those so that they can still use the
+        // classloader to ensure any dependencies of that model are
+        // loaded before they use it.
+        if ( this.latched[id] ) {
+          var json = this.latched[id];
+          delete this.latched[id];
+          return this.pending[id] = Promise.all(foam.json.references(this.__context__, json)).then(function() {
+            var cls = json.class ? foam.lookup(json.class) : foam.core.Model;
+            return self.modelDeps_(cls.create(json), path);
+          }).then(function() {
+            // Latched models will already be registered in the
+            // context via foam.CLASS as defined in EndBoot.js
+            return foam.lookup(id);
           });
         }
 
-        if ( foam.core.Model.isInstance(id) ) {
-          return this.pending[id] = this.buildClass_(id, path);
-        }
+        if ( foam.lookup(id, true) ) return Promise.resolve(foam.lookup(id));
 
-        throw new Error("Invalid parameter to ClassLoader.load_");
+        return this.pending[id] = this.modelDAO.find(id).then(function(m) {
+          if ( ! m ) return Promise.reject(new Error('Class Not Found: ' + id));
+
+          return this.buildClass_(m, path);
+        }.bind(this), function(e) {
+          throw new Error("Failed to load class " + id + ' caused by: ' + e.stack);
+        });
       }
     },
     {
@@ -163,7 +162,7 @@ have multiple classloaders running alongside eachother`
     {
       name: 'buildClass_',
       args: [ { name: 'model', of: 'foam.core.Model' },
-              { name: 'path', of: 'Array' } ],
+              { name: 'path', of: 'foam.Array' } ],
       code: function(model, path) {
         var self = this;
 

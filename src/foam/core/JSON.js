@@ -713,7 +713,7 @@ foam.LIB({
               console.log('Constructing anonymous class', json.name);
 
               r.push(Promise.all(foam.json.references(x, json, [])).then(function() {
-                return x.classloader.maybeLoad(foam.core.Model.create(json));
+                return x.classloader.fromModel(foam.core.Model.create(json));
               }));
 
               o[key] = json.name;
