@@ -1372,8 +1372,13 @@ foam.CLASS({
       return this;
     },
 
-    function on(topic, listener) {
+    function on(topic, listener/* args...*/) {
       /* Shorter fluent version of addEventListener. Prefered method. */
+      if ( arguments.length > 2 ) {
+        var args = Array.from(arguments).slice(2);
+        var l = listener;
+        listener = function() { l.apply(null, args); };
+      }
       this.addEventListener(topic, listener);
       return this;
     },
