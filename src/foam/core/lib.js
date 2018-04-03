@@ -118,6 +118,7 @@ foam.LIB = function LIB(model) {
 
   // During boot, keep a list of created LIBs
   if ( global.foam.__LIBS__ ) global.foam.__LIBS__[model.name] = root;
+  if ( global.foam.__LIBS2__ ) global.foam.__LIBS2__.push(model);
 
   if ( model.constants ) {
     foam.assert(
@@ -149,3 +150,4 @@ foam.LIB = function LIB(model) {
   }
 };
 global.foam.__LIBS__ = {};
+global.foam.__LIBS2__ = [];
