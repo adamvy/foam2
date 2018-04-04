@@ -402,19 +402,38 @@ foam.CLASS({
   `,
 
   properties: [
-    'obj',
+    {
+      name: 'obj',
+      postSet: function(_, obj) {
+        // Technically the cleanup step is optional.  However if we
+        // don't cleanup then we could still be subscribed to the
+        // slots of the previous obj.  Those subscriptions will
+        // eventually be cleaned up if the expression is ever
+        // triggered, but if the expression never does trigger then
+        // they could be a memory leak.  So we might as well cleanup.
+
+        // Cleanup must happen first.  It's possible that invalidate()
+        // triggers listeners on this slot which will synchronously
+        // read the value.  This will result in the argument
+        // subscription being updated to the new object.  If we
+        // cleanup after this step then we'll be broken because we're
+        // not listening for any of the arguments to update.
+        this.cleanup();
+        this.invalidate();
+      }
+    },
     'code',
     {
       name: 'args',
       expression: function(obj) {
         foam.assert(obj, 'ExpressionSlot: "obj" or "args" required.');
 
+
         var args = foam.Function.argNames(this.code);
         for ( var i = 0 ; i < args.length ; i++ ) {
           args[i] = obj.slot(args[i]);
         }
 
-        // this.invalidate(); // ???: Is this needed?
         this.subToArgs_(args);
 
         return args;
