@@ -365,15 +365,12 @@ foam.CLASS({
       factory: function() {
         return this.blobService.find(this.id);
       },
+      comparePropertyValues: function(o1, o2) { return 0; },
       javaFactory: 'return ((BlobService) getBlobStore()).find(getId());'
     }
   ],
 
   methods: [
-    function compareTo(other) {
-      return foam.blob.IdentifiedBlob.isInstance(other) && other.id == this.id;
-    },
-
     function read(buffer, offset) {
       return this.delegate.then(function(d) {
         return d.read(buffer, offset);
