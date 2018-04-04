@@ -60,6 +60,12 @@ foam.CLASS({
       along the chain changes.
     */
     function dot(name) {
+      if ( name == '' ) {
+        return foam.core.internal.WildcardSlot.create({
+          parent: this
+        });
+      }
+
       return foam.core.internal.SubSlot.create({
         parent: this,
         name:   name
@@ -329,6 +335,59 @@ foam.CLASS({
     function valueChange() {
       var parentValue = this.parent.get();
       this.value = parentValue ? parentValue[this.name] : undefined;
+    }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.core.internal',
+  name: 'WildcardSlot',
+  extends: 'foam.core.Slot',
+
+  documentation: 'Like a subslot, but for all properties, triggers when anything on the parent object changes.',
+
+  properties: [
+    'parent',
+    'prevSub'
+  ],
+
+  methods: [
+    function init() {
+      this.parent.sub(this.parentChange);
+      this.parentChange();
+    },
+
+    function get() { return this.parent.get(); },
+
+    function set(value) {
+      throw new Error('Cannnnot assign a wildcard slot.');
+    },
+
+    // function getPrev() { return this.oldValue; },
+    // function setPrev(value) { return this.oldValue = value; },
+
+    function sub(l) {
+      return arguments.length == 1 ?
+        this.SUPER('propertyChange', 'value', l) :
+        this.SUPER.apply(this, arguments);
+    },
+
+    function toString() {
+      return 'WildcardSlot(' + this.obj.cls_.id + ')';
+    }
+  ],
+  listeners: [
+    function parentChange(s) {
+      this.prevSub && this.prevSub.detach();
+
+      var o = this.parent.get();
+
+      this.prevSub = o && o.sub('propertyChange', this.valueChange);
+
+      this.valueChange();
+    },
+    function valueChange() {
+      this.pub('propertyChange', 'value', this);
     }
   ]
 });
