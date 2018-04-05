@@ -255,7 +255,7 @@ fi
 
 shift $$(($$OPTIND - 1))
 
-java $$DEBUG_ARGS -cp $(1):$$EXTRA_CP foam.nanos.boot.Boot $$NANOS_ARGS "$$@"
+$(JAVA) $$DEBUG_ARGS -cp $(1):$$EXTRA_CP foam.nanos.boot.Boot $$NANOS_ARGS "$$@"
 
 endef
 
