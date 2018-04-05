@@ -543,3 +543,22 @@ foam.CLASS({
     function invalidate() { this.clearProperty('value'); }
   ]
 });
+
+foam.CLASS({
+  package: 'foam.core',
+  name: 'ValueSlot',
+  properties: [
+    'value'
+  ],
+  methods: [
+    function sub(l) {
+      return arguments.length === 1 ?
+        this.SUPER('propertyChange', 'value', l) :
+        this.SUPER.apply(this, arguments);
+    },
+
+    function get() { return this.value; },
+
+    function set(v) { this.value = v; }
+  ]
+});
