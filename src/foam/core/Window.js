@@ -94,6 +94,7 @@ foam.CLASS({
     },
 
     function error() {
+      throw new Error(Array.from(arguments).join(' '));
       this.console.error.apply(this.console, arguments);
     },
 
