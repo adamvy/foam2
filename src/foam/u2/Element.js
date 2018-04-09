@@ -255,9 +255,6 @@ foam.CLASS({
     function load() {
       this.error('Must output before loading.');
     },
-    function unload() {
-      this.error('Must output and load before unloading.');
-    },
     function toString() { return 'UNLOADED'; }
   ]
 });
