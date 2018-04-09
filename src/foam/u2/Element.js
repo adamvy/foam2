@@ -1816,7 +1816,6 @@ foam.CLASS({
       var prev = nextE();
       var l = function() {
         if ( self.state !== self.LOADED ) {
-          debugger;
           return;
         }
         var next = nextE();
@@ -1824,8 +1823,12 @@ foam.CLASS({
         prev = next;
       };
 
+      var first = true;
+      l = this.framed(l);
       this.whileLoaded(function() {
-        return slot.sub(this.framed(l));
+        if ( first ) first = false;
+        else l();
+        return slot.sub(l);
       }.bind(this));
 
       return prev;
