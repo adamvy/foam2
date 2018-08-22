@@ -1,8 +1,7 @@
-#!@BASH_REAL@
+#!@NODEJS@
 
-@NODE@ - "$@" <<EOF
 process.on('unhandledRejection', function(e) {
-  console.error("ERROR: Unhandled promise rejection ", e);
+  console.error("ERROR: Unhandled promise rejection ", e.stack);
   process.exit(1);
 });
 
@@ -97,4 +96,4 @@ foam.__context__.classloader.load(cls).then(function(cls) {
   var obj = cls.create(args);
   obj.execute && obj.execute();
 });
-EOF
+
