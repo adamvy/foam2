@@ -19,7 +19,7 @@ pkglocalstatedir = @localstatedir@/@PACKAGE_NAME@
 sharedstatedir = @sharedstatedir@
 pkglibdir = @libdir@/@PACKAGE_NAME@
 BASH_REAL = @BASH_REAL@
-NODE = @NODE@
+NODEJS = @NODEJS@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -76,7 +76,7 @@ nanos_MAVEN_DEPS = \
 lib_JARS = nanos
 sbin_PROGRAMS = nanos
 
-foam_genjava = $(NODE) $(srcdir)/tools/genjava2.js
+foam_genjava = $(NODEJS) $(srcdir)/tools/genjava2.js
 
 java_dep_dir = $(builddir)/lib
 abs_java_dep_dir = $(abspath $(java_dep_dir))
@@ -297,7 +297,7 @@ DISTFILES += $(srcdir)/bin/foam.in
 bin/foam: $(srcdir)/bin/foam.in
 	$(MKDIR_P) $(builddir)/bin
 	$(SED) -e 's|@BASH_REAL[@]|$(BASH_REAL)|g' \
-	       -e 's|@NODE[@]|$(NODE)|g' \
+	       -e 's|@NODEJS[@]|$(NODEJS)|g' \
 	       -e 's|@BOOTCLASSPATH[@]|$(abs_top_srcdir)/src/|g' \
 	       < $< > $@
 	chmod +x $@

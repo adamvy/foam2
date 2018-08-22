@@ -1,21 +1,23 @@
 AC_INIT([foam2], [0.1])
 
+AC_CONFIG_AUX_DIR([build-aux])
+
 AC_PROG_INSTALL
 AC_PROG_SED
 
-m4_define([VANY_PROG_REQUIRED],
+m4_define([FOAM2_PROG_REQUIRED],
   [AC_PATH_PROG([$1], [$2], [no], [m4_default([$3], [$PATH])])
    AS_IF([test "x$$1" = xno], [AC_MSG_ERROR([$2 is required.])])])
 
 AS_IF([test "x$JAVA_HOME" != x], [java_search_path=$PATH$PATH_SEPARATOR$JAVA_HOME/bin], [java_search_path=$PATH])
 
-VANY_PROG_REQUIRED([JAVAC], [javac], [$java_search_path])
-VANY_PROG_REQUIRED([JAR], [jar], [$java_search_path])
-VANY_PROG_REQUIRED([JAVA], [java], [$java_search_path])
+FOAM2_PROG_REQUIRED([JAVAC], [javac], [$java_search_path])
+FOAM2_PROG_REQUIRED([JAR], [jar], [$java_search_path])
+FOAM2_PROG_REQUIRED([JAVA], [java], [$java_search_path])
 
-VANY_PROG_REQUIRED([BASH_REAL], [bash])
-VANY_PROG_REQUIRED([NODE], [node])
-VANY_PROG_REQUIRED([WGET], [wget])
+FOAM2_PROG_REQUIRED([BASH_REAL], [bash])
+FOAM2_PROG_REQUIRED([NODEJS], [node nodejs js])
+FOAM2_PROG_REQUIRED([WGET], [wget])
 
 AC_PROG_MKDIR_P
 
