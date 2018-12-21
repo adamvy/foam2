@@ -19,13 +19,14 @@ foam.CLASS({
   package: 'foam.box',
   name: 'SkeletonBox',
   implements: ['foam.box.Box'],
+  flags: ['js', 'swift'],
 
   requires: [
+    'foam.box.InvalidMessageException',
     'foam.box.Message',
-    'foam.box.RPCMessage',
-    'foam.box.RPCReturnMessage',
     'foam.box.RPCErrorMessage',
-    'foam.box.InvalidMessageException'
+    'foam.box.RPCMessage',
+    'foam.box.RPCReturnMessage'
   ],
 
   properties: [
@@ -39,8 +40,8 @@ foam.CLASS({
       name: 'call',
       args: [
         {
-          swiftType: 'Message?',
           name: 'message',
+          type: 'foam.box.Message'
         },
       ],
       code: function(message) {
@@ -48,9 +49,10 @@ foam.CLASS({
 
         try {
           var method = this.data.cls_.getAxiomByName(message.object.name);
-          var args = message.object.args.slice();
+          var args   = message.object.args.slice();
 
           // TODO: This is pretty hackish.  Context-Oriented methods should just be modeled.
+          // TODO: at least check that the javaType is foam.core.X
           if ( method && method.args && method.args[0] && method.args[0].name == 'x' ) {
             var x = this.__context__.createSubContext({
               message: message
@@ -67,8 +69,7 @@ foam.CLASS({
         }
 
         var replyBox = message.attributes.replyBox;
-
-        var self = this;
+        var self     = this;
 
         if ( p instanceof Promise ) {
           p.then(
@@ -90,8 +91,8 @@ foam.CLASS({
       },
       swiftCode: function() {/*
 do {
-  guard let object = message?.object as? RPCMessage,
-        let data = self.data as? FObject,
+  guard let object = message.object as? foam_box_RPCMessage,
+        let data = self.data as? foam_core_FObject,
         let method = data.ownClassInfo().axiom(byName: object.name) as? MethodInfo
   else {
     throw InvalidMessageException_create()
@@ -101,13 +102,13 @@ do {
 
   var p = try method.call(data, args: object.args)
 
-  guard let replyBox = message?.attributes["replyBox"] as? Box else { return }
+  guard let replyBox = message.attributes["replyBox"] as? foam_box_Box else { return }
   if let pFut = p as? Future<Any> { p = try pFut.get() }
   try replyBox.send(Message_create([
     "object": RPCReturnMessage_create(["data": p])
   ]))
 } catch let e {
-  if let errorBox = message?.attributes["errorBox"] as? Box {
+  if let errorBox = message.attributes["errorBox"] as? foam_box_Box {
     try? errorBox.send(Message_create([
       "object": RPCErrorMessage_create([
         "data": e.localizedDescription
@@ -131,7 +132,7 @@ do {
         });
       },
       swiftCode: function() {/*
-if let _ = msg.object as? RPCMessage {
+if let _ = msg.object as? foam_box_RPCMessage {
   call(msg)
   return
 }

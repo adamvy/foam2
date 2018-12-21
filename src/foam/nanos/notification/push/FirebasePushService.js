@@ -6,6 +6,8 @@
 
 /* refinement to add device token property for Firebase */
 foam.CLASS({
+  package: 'foam.nanos.auth',
+  name: 'UserDeviceTokenRefinement',
   refines: 'foam.nanos.auth.User',
 
   properties: [
@@ -69,6 +71,7 @@ try {
   conn.setRequestMethod("POST");
   conn.setRequestProperty("Authorization", "key=" + getApiKey());
   conn.setRequestProperty("Content-Type", "application/json");
+  conn.setDoOutput(true);
 
   Map<String, Object> body = new HashMap<String, Object>();
   body.put("to", user.getDeviceToken());
@@ -103,4 +106,4 @@ try {
 }`
     }
   ]
-})
+});

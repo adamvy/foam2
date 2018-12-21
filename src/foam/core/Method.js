@@ -61,10 +61,27 @@ foam.CLASS({
     { name: 'name', required: true },
     { name: 'code', required: false },
     'documentation',
-    'returns',
+    'flags',
+    {
+      name: 'returns',
+      value: 'Void'
+    },
+    {
+      class: 'Boolean',
+      name: 'async',
+    },
     {
       name: 'args',
-      factory: function() { return this.code ? foam.Function.args(this.code) : []; }
+      factory: function() {
+        if ( this.code )
+          try {
+            var bd = foam.Function.breakdown(this.code);
+            return bd.args;
+          } catch(e) {
+            console.warn('Unable to parse args:', e);
+          }
+        return [];
+      }
     }
   ],
 
@@ -128,10 +145,7 @@ foam.CLASS({
     },
 
     function createChildMethod_(child) {
-      /**
-        Template method for use by Method subclasses.
-        (Used by JavaSource.)
-      */
+      // Overwritten after foam.core.Argument is created.
       return child;
     },
 
@@ -167,5 +181,10 @@ foam.CLASS({
   ]
 });
 
-
-foam.boot.phase2();
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'BootPhase2',
+  code: function() {
+    foam.boot.phase2();
+  }
+});

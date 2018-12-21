@@ -15,6 +15,14 @@
  * limitations under the License.
  */
 
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'ContextScript',
+  requires: [
+    'foam.core.ConstantSlot',
+  ],
+  code: function() {
+
 /**
  * Context Support
  *
@@ -54,6 +62,15 @@
       return foam.Function.isInstance(ret) ? ret() : ret;
     },
 
+    isRegistered: function(id) {
+      return !! this.__cache_[id];
+    },
+
+    isDefined: function(id) {
+      return !! this.__cache__[id] &&
+        ! foam.Function.isInstance(this.__cache__[id]);
+    },
+
     /**
      * Register a class into the given context.  After registration
      * the class can be found again by calling foam.lookup('com.foo.SomeClass');
@@ -65,6 +82,10 @@
       foam.assert(
         typeof cls === 'object',
         'Cannot register non-objects into a context.');
+
+      // Top level context also registers classes globally.
+      if ( this === foam.__context__ )
+        foam.package.registerClass(cls);
 
       if ( opt_id ) {
         this.registerInCache_(cls, this.__cache__, opt_id);
@@ -90,6 +111,10 @@
       foam.assert(
         typeof m.id === 'string',
         'Must have an .id property to be registered in a context.');
+
+      // top level context registers classes globally
+      if ( this === foam.__context__ )
+        foam.package.registerClassFactory(m, factory);
 
       this.registerInCache_(factory, this.__cache__, m.id);
 
@@ -206,3 +231,6 @@
 
   foam.__context__ = __context__;
 })();
+
+  }
+});

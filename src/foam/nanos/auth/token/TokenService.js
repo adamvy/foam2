@@ -13,34 +13,60 @@ foam.INTERFACE({
   methods: [
     {
       name: 'generateToken',
-      returns: 'Promise',
-      javaReturns: 'boolean',
-      swiftReturns: 'Bool',
+      async: true,
+      returns: 'Boolean',
       swiftThrows: true,
       args: [
         {
+          name: 'x',
+          type: 'Context'
+        },
+        {
           name: 'user',
-          javaType: 'foam.nanos.auth.User',
-          swiftType: 'User'
+          type: 'foam.nanos.auth.User'
+        }
+      ]
+    },
+    {
+      name: 'generateTokenWithParameters',
+      async: true,
+      returns: 'Boolean',
+      swiftThrows: true,
+      args: [
+        {
+          name: 'x',
+          type: 'Context'
+        },
+        {
+          name: 'user',
+          type: 'foam.nanos.auth.User'
+        },
+        {
+          name: 'parameters',
+          type: 'Map',
+          // TODO: Can we encode this in type directly?
+          javaType: 'java.util.Map<String, Object>',
+          swiftType: '[String:Any]'
         }
       ]
     },
     {
       name: 'processToken',
-      returns: 'Promise',
-      javaReturns: 'boolean',
-      swiftReturns: 'Bool',
+      async: true,
+      returns: 'Boolean',
       swiftThrows: true,
       args: [
         {
+          name: 'x',
+          type: 'Context'
+        },
+        {
           name: 'user',
-          javaType: 'foam.nanos.auth.User',
-          swiftType: 'User'
+          type: 'foam.nanos.auth.User'
         },
         {
           name: 'token',
-          javaType: 'String',
-          swiftType: 'String'
+          type: 'String'
         }
       ]
     }

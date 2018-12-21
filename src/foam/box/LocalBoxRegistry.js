@@ -105,7 +105,7 @@ return ((Registration)registration).getExportBox();
       swiftCode: function() {/*
 let name: String = name ?? UUID().uuidString
 
-var exportBox: Box = SubBox_create([
+var exportBox: foam_box_Box = SubBox_create([
   "name": name,
   "delegate": me
 ])
@@ -153,18 +153,9 @@ return exportBox;
         delete this.registry_[name];
       },
       swiftSynchronized: true,
-      swiftCode: function() {/*
-if let name = name as? String {
-  registry_.removeValue(forKey: name)
-} else if let name = name as? AnyClass {
-  for key in registry_.keys {
-    if ((registry_[key] as! Registration).exportBox as? AnyClass) === name {
-      registry_.removeValue(forKey: key)
-      return
-    }
-  }
-}
-      */},
+      swiftCode: `
+registry_.removeValue(forKey: name)
+      `,
       javaCode: `
 getRegistry_().remove(name);
 `

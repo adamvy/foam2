@@ -20,7 +20,7 @@
   var isWorker = typeof importScripts !== 'undefined';
   var isServer = ( ! isWorker ) && typeof window === 'undefined';
 
-  var flags    = this.FOAM_FLAGS || {};
+  var flags    = this.FOAM_FLAGS = this.FOAM_FLAGS || {};
   flags.web    = ! isServer,
   flags.node   = isServer;
   flags.loader = ! isServer;
@@ -42,7 +42,7 @@
       }
     }
 
-    path = path.substring(0, path.lastIndexOf('/')+1);
+    path = path.substring(0, path.lastIndexOf('src/')+4);
 
     if ( typeof global !== 'undefined' ) global.FOAM_ROOT = path;
     if ( typeof window !== 'undefined' ) window.FOAM_ROOT = path;
@@ -55,7 +55,7 @@
 
   function loadServer() {
     var caller = flags.src || __filename;
-    var path = caller.substring(0, caller.lastIndexOf('/')+1);
+    var path = caller.substring(0, caller.lastIndexOf('src/')+4);
 
     if ( typeof global !== 'undefined' ) global.FOAM_ROOT = path;
 
@@ -82,6 +82,9 @@
 
     files.
       filter(function(f) {
+        // Ignore all flags, load everything.
+        return true;
+
         if ( f.flags ) {
           for ( var i = 0; i < f.flags.length; i++ ) {
             if ( ! flags[f.flags[i]] ) return false;

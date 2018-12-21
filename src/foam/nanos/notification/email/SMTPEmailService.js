@@ -25,17 +25,26 @@ foam.CLASS({
     'foam.core.X',
     'foam.nanos.pool.FixedThreadPool',
     'foam.util.SafetyUtil',
-    'org.apache.commons.lang3.StringUtils',
-    'org.jtwig.JtwigModel',
-    'org.jtwig.JtwigTemplate',
-    'org.jtwig.environment.EnvironmentConfiguration',
-    'org.jtwig.environment.EnvironmentConfigurationBuilder',
-    'org.jtwig.resource.loader.TypedResourceLoader',
+    'java.nio.charset.StandardCharsets',
+    'java.util.Date',
+    'java.util.Properties',
     'javax.mail.*',
     'javax.mail.internet.InternetAddress',
     'javax.mail.internet.MimeMessage',
-    'java.util.Date',
-    'java.util.Properties'
+    'org.apache.commons.lang3.StringUtils',
+    'org.jtwig.environment.EnvironmentConfiguration',
+    'org.jtwig.environment.EnvironmentConfigurationBuilder',
+    'org.jtwig.JtwigModel',
+    'org.jtwig.JtwigTemplate',
+    'org.jtwig.resource.loader.TypedResourceLoader',
+    'foam.dao.DAO',
+    'foam.nanos.auth.User',
+    'foam.nanos.auth.Group',
+    'foam.nanos.app.AppConfig',
+    'foam.dao.ArraySink',
+    'foam.dao.Sink',
+    'foam.mlang.MLang',
+    'java.util.List'
   ],
 
   axioms: [
@@ -67,6 +76,12 @@ protected EnvironmentConfiguration config_ = null;`
   ],
 
   properties: [
+    {
+      class: 'Boolean',
+      name: 'enabled',
+      value: true,
+      javaFactory: 'return true;'
+    },
     {
       class: 'String',
       name: 'host',
@@ -121,7 +136,7 @@ protected EnvironmentConfiguration config_ = null;`
       args: [
         {
           name: 'group',
-          javaType: 'String'
+          type: 'String'
         }
       ],
       javaCode:
@@ -129,10 +144,11 @@ protected EnvironmentConfiguration config_ = null;`
   config_ = EnvironmentConfigurationBuilder
     .configuration()
     .resources()
-    .resourceLoaders()
-    .add(new TypedResourceLoader("dao", new DAOResourceLoader(getX(), group)))
-    .and().and()
-    .build();
+      .resourceLoaders()
+        .add(new TypedResourceLoader("dao", new DAOResourceLoader(getX(), group)))
+      .and()
+    .and()
+  .build();
 }
 return config_;`
     },
@@ -142,7 +158,7 @@ return config_;`
       args: [
         {
           name: 'emailMessage',
-          javaType: 'foam.nanos.notification.email.EmailMessage'
+          type: 'foam.nanos.notification.email.EmailMessage'
         }
       ],
       javaCode:
@@ -150,12 +166,12 @@ return config_;`
   MimeMessage message = new MimeMessage(session_);
 
   // don't send email if no sender
-  String from = getFrom();
+  String from = emailMessage.getFrom();
   if ( SafetyUtil.isEmpty(from) )
     return null;
 
   // add display name if present
-  String displayName = getDisplayName();
+  String displayName = emailMessage.getDisplayName();
   if ( SafetyUtil.isEmpty(displayName) ) {
     message.setFrom(new InternetAddress(from));
   } else {
@@ -163,7 +179,7 @@ return config_;`
   }
 
   // attach reply to if present
-  String replyTo = getReplyTo();
+  String replyTo = emailMessage.getReplyTo();
   if ( ! SafetyUtil.isEmpty(replyTo) ) {
     message.setReplyTo(InternetAddress.parse(replyTo));
   }
@@ -219,16 +235,22 @@ return config_;`
       name: 'sendEmail',
       args: [
         {
+          name: 'x',
+          javaType: 'foam.core.X'
+        },
+        {
           name: 'emailMessage',
-          javaType: 'final foam.nanos.notification.email.EmailMessage'
+          type: 'foam.nanos.notification.email.EmailMessage'
         }
       ],
-      javaCode:
-`((FixedThreadPool) getThreadPool()).submit(getX(), new ContextAgent() {
+      javaCode: `
+if ( ! this.getEnabled() ) return;
+
+((FixedThreadPool) getThreadPool()).submit(x, new ContextAgent() {
   @Override
   public void execute(X x) {
     try {
-      MimeMessage message = createMimeMessage(emailMessage);
+      MimeMessage message = createMimeMessage(finalizeEmailConfig(x, emailMessage));
       if ( message == null ) {
         return;
       }
@@ -246,18 +268,36 @@ return config_;`
     },
     {
       name: 'sendEmailFromTemplate',
-      javaCode:
-`String group = user != null ? (String) user.getGroup() : null;
+      javaCode: `
+if ( ! this.getEnabled() ) return;
+
+String group = user != null ? (String) user.getGroup() : null;
 EmailTemplate emailTemplate = DAOResourceLoader.findTemplate(getX(), name, group);
 if ( emailMessage == null )
   return;
 
+for ( String key : templateArgs.keySet() ) {
+  Object value = templateArgs.get(key);
+  if ( value instanceof String ) {
+    String s = (String) value;
+    templateArgs.put(key, new String(s.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8));
+  }
+}
+
 EnvironmentConfiguration config = getConfig(group);
-JtwigTemplate template = JtwigTemplate.inlineTemplate(emailTemplate.getBody(), config);
 JtwigModel model = JtwigModel.newModel(templateArgs);
-emailMessage.setSubject(emailTemplate.getSubject());
-emailMessage.setBody(template.render(model));
-sendEmail(emailMessage);`
+emailMessage = (EmailMessage) emailMessage.fclone();
+
+JtwigTemplate templateBody =    JtwigTemplate.inlineTemplate(emailTemplate.getBody(), config);
+emailMessage.setBody(templateBody.render(model));
+
+// If subject has already provided, then we don't want to use template subject.
+if (SafetyUtil.isEmpty(emailMessage.getSubject())) {
+  JtwigTemplate templateSubject = JtwigTemplate.inlineTemplate(emailTemplate.getSubject(), config);
+  emailMessage.setSubject(templateSubject.render(model));
+}
+
+sendEmail(x, emailMessage);`
     },
     {
       name: 'start',
@@ -273,6 +313,91 @@ if ( getAuthenticate() ) {
 } else {
   session_ = Session.getInstance(props);
 }`
+    },
+    {
+      name: 'finalizeEmailConfig',
+      javaReturns: 'foam.nanos.notification.email.EmailMessage',
+      args: [
+        {
+          name: 'x',
+          javaType: 'foam.core.X'
+        },
+        {
+          name: 'emailMessage',
+          javaType: 'final foam.nanos.notification.email.EmailMessage'
+        }
+      ],
+      javaCode:
+        `
+User user      = findUser(x, emailMessage);
+
+DAO groupDAO   = (DAO) x.get("groupDAO");
+Group group    = (Group) groupDAO.find(user.getGroup());
+
+if ( SafetyUtil.isEmpty(emailMessage.getFrom()) ) {
+  emailMessage.setFrom(
+    ! SafetyUtil.isEmpty(group.getFrom()) ?
+      group.getFrom() : getFrom()
+  );
+}
+
+if ( SafetyUtil.isEmpty(emailMessage.getReplyTo()) ) {
+  emailMessage.setReplyTo(
+    ! SafetyUtil.isEmpty(group.getReplyTo()) ?
+      group.getReplyTo() : getReplyTo()
+  );
+}
+
+if ( SafetyUtil.isEmpty(emailMessage.getDisplayName()) ) {
+  emailMessage.setDisplayName(
+    ! SafetyUtil.isEmpty(group.getDisplayName()) ? group.getDisplayName() : getDisplayName()
+  );
+}
+
+return emailMessage;
+      `
+    },
+    {
+      name: 'findUser',
+      javaReturns: 'foam.nanos.auth.User',
+      args: [
+        {
+          name: 'x',
+          javaType: 'foam.core.X'
+        },
+        {
+          name: 'emailMessage',
+          javaType: 'final foam.nanos.notification.email.EmailMessage'
+        }
+      ],
+      javaCode:
+        `
+foam.nanos.session.Session session = x.get(foam.nanos.session.Session.class);
+
+DAO userDAO         = (DAO) x.get("localUserDAO");
+User user           = (User) userDAO.find(session.getUserId());
+
+// 1. If the user doesn't login at this time, get the user from localUserDao
+// 2. If the user is the system user, get the real user from localUserDao
+if ( user == null || user.getId() == 1 ) {
+
+  Sink sink = new ArraySink();
+  sink = userDAO.where(MLang.EQ(User.EMAIL, emailMessage.getTo()[0]))
+    .limit(1).select(sink);
+
+  List list = ((ArraySink) sink).getArray();
+  if ( list == null || list.size() == 0 ) {
+    throw new RuntimeException("User not found");
+  }
+
+  user = (User) list.get(0);
+  if ( user == null ) {
+    throw new RuntimeException("User not found");
+  }
+}
+
+return user;
+      `
     }
   ]
 });

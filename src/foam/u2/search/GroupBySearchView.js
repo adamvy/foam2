@@ -21,11 +21,11 @@ foam.CLASS({
   extends: 'foam.u2.View',
 
   requires: [
+    'foam.dao.FnSink',
     'foam.mlang.Constant',
     'foam.mlang.predicate.True',
     'foam.mlang.sink.Count',
     'foam.mlang.sink.GroupBy',
-    'foam.dao.FnSink',
     'foam.u2.view.ChoiceView'
   ],
 
@@ -42,7 +42,7 @@ foam.CLASS({
     {
       class: 'foam.u2.ViewSpec',
       name: 'viewSpec',
-      value: { class: 'foam.u2.view.ChoiceView', size: 10 }
+      value: { class: 'foam.u2.view.ChoiceView' }
     },
     {
       class: 'foam.dao.DAOProperty',
@@ -55,7 +55,9 @@ foam.CLASS({
     },
     {
       name: 'name',
-      expression: function(property) { return property.name; }
+      expression: function(property) {
+        return property.name;
+      }
     },
     {
       class: 'Class',
@@ -83,7 +85,9 @@ foam.CLASS({
     {
       class: 'Function',
       name: 'aFormatLabel',
-      value: function(key) { return Promise.resolve(''+key); }
+      value: function(key) {
+        return Promise.resolve('' + key);
+      }
     },
     'previewMode',
     'hardData'
@@ -92,6 +96,7 @@ foam.CLASS({
   methods: [
     function clear() {
       this.view.data = '';
+      this.hardData = undefined;
     },
 
     function initE() {
@@ -101,14 +106,16 @@ foam.CLASS({
         .addClass(this.myClass())
         .tag(this.viewSpec, {
           label$: this.label$,
-          alwaysFloatLabel: true
+          alwaysFloatLabel: true,
+          dynamicSize: true,
+          maxSize: 10
         }, this.view$)
         .on('click', function(e) {
           try {
             self.previewMode = false;
-            var data         = self.view.choices[e.target.value][0];
-            self.hardData    = data;
-          } catch(x) {}
+            var data = self.view.choices[e.target.value][0];
+            self.hardData = data;
+          } catch (x) {}
         })
         .on('mouseover', function(e) {
           try {
@@ -120,17 +127,15 @@ foam.CLASS({
             }
 
             self.view.data = data;
-          } catch(x) {}
+          } catch (x) {}
         })
         .on('mouseout', function(e) {
-          if ( e.relatedTarget && e.relatedTarget.nodeName === 'OPTION' ) return;
-          self.view.data   = self.hardData;
-          self.hardData    = undefined;
-          self.previewMode = false;
+          self.view.data = self.hardData;
+          if ( self.hardData === undefined ) self.view.data = '';
         })
         .onDetach(
           this.dao$proxy.listen(
-            this.FnSink.create({fn: this.updateDAO})
+            this.FnSink.create({ fn: this.updateDAO })
           )
         );
 
@@ -166,7 +171,7 @@ foam.CLASS({
           var options = [];
           var selected;
           var sortedKeys = groups.sortedKeys();
-          self.formatLabels(sortedKeys).then(function (labels) {
+          self.formatLabels(sortedKeys).then(function(labels) {
             for ( var i = 0 ; i < sortedKeys.length ; i++ ) {
               var key = sortedKeys[i];
               if ( typeof key === 'undefined' ) continue;
@@ -192,7 +197,7 @@ foam.CLASS({
               ]);
             }
 
-            options.splice(0, 0, [ '', '--' ]);
+            options.splice(0, 0, ['', '--']);
 
             self.view.choices = options;
             if ( typeof selected !== 'undefined' ) {

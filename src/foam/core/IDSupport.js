@@ -34,7 +34,6 @@ foam.CLASS({
       name: 'targetProperty',
       transient: true
     },
-    ['hidden', true],
     ['getter', function() {
       return this.cls_.ID.targetProperty.f(this);
     }],
@@ -149,7 +148,13 @@ foam.CLASS({
 });
 
 foam.CLASS({
+  package: 'foam.core',
+  name: 'ModelIDRefine',
   refines: 'foam.core.Model',
+  requires: [
+    'foam.core.IDAlias',
+    'foam.core.MultiPartID',
+  ],
   properties: [
     {
       name: 'ids',

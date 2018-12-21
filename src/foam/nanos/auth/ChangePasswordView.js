@@ -137,6 +137,19 @@ foam.CLASS({
       display: inline-block;
     }
   `,
+
+  messages: [
+    { name: 'noSpaces', message: 'Password cannot contain spaces' },
+    { name: 'noNumbers', message: 'Password must have one numeric character' },
+    { name: 'noSpecial', message: 'Password must not contain: !@#$%^&*()_+' },
+    { name: 'emptyOriginal', message: 'Please enter your original password'},
+    { name: 'emptyPassword', message: 'Please enter your new password' },
+    { name: 'emptyConfirmation', message: 'Please re-enter your new password' },
+    { name: 'invalidLength', message: 'Password must be 7-32 characters long' },
+    { name: 'passwordMismatch', message: 'Passwords do not match' },
+    { name: 'passwordSuccess', message: 'Password successfully updated' }
+  ],
+
   properties: [
     {
       class: 'String',
@@ -154,19 +167,20 @@ foam.CLASS({
       view: { class: 'foam.u2.view.PasswordView' }
     }
   ],
+
   methods: [
-    function initE(){
+    function initE() {
       this.SUPER();
       this
       .addClass(this.myClass())
       .start().addClass('Container')
         .start('div')
-          .start('h1').add("Change Password").addClass('changePass-Text').end()
+          .start('h1').add('Change Password').addClass('changePass-Text').end()
         .end()
         .start('div')
-          .start('h2').add("Original Password").addClass('originalPass-Text').end()
-          .start('h2').add("New Password").addClass('newPass-Text').end()
-          .start('h2').add("Confirm Password").addClass('confirmPass-Text').end()
+          .start('h2').add('Original Password').addClass('originalPass-Text').end()
+          .start('h2').add('New Password').addClass('newPass-Text').end()
+          .start('h2').add('Confirm Password').addClass('confirmPass-Text').end()
         .end()
         .start('div')
           .start(this.ORIGINAL_PASSWORD).addClass('originalPass-Input').end()
@@ -177,23 +191,12 @@ foam.CLASS({
       .end()
     }
   ],
-  messages: [
-    { name: 'noSpaces', message: 'Password cannot contain spaces' },
-    { name: 'noNumbers', message: 'Password must have one numeric character' },
-    { name: 'noSpecial', message: 'Password must not contain: !@#$%^&*()_+' },
-    { name: 'emptyOriginal', message: 'Please enter your original password'},
-    { name: 'emptyPassword', message: 'Please enter your new password' },
-    { name: 'emptyConfirmation', message: 'Please re-enter your new password' },
-    { name: 'invalidLength', message: 'Password must be 7-32 characters long' },
-    { name: 'passwordMismatch', message: 'Passwords do not match' },
-    { name: 'passwordSuccess', message: 'Password successfully updated' }
-  ],
 
   actions: [
    {
       name: 'updatePassword',
       label: 'Update',
-      code: function (X) {
+      code: function(X) {
         var self = this;
 
         // check if original password entered
@@ -241,7 +244,7 @@ foam.CLASS({
         }
 
         // update password
-        this.auth.updatePassword(null, this.originalPassword, this.newPassword).then(function (result) {
+        this.auth.updatePassword(null, this.originalPassword, this.newPassword).then(function(result) {
           // copy new user, clear password fields, show success
           self.user.copyFrom(result);
           self.originalPassword = null;
@@ -249,10 +252,10 @@ foam.CLASS({
           self.confirmPassword = null;
           self.add(self.NotificationMessage.create({ message: self.passwordSuccess }));
         })
-        .catch(function (err) {
+        .catch(function(err) {
           self.add(self.NotificationMessage.create({ message: err.message, type: 'error' }));
         });
       }
     }
   ]
-})
+});

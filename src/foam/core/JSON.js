@@ -22,6 +22,8 @@
 //   - don't output default classes
 */
 foam.CLASS({
+  package: 'foam.core',
+  name: 'PropertyToFromJSONRefinement',
   refines: 'foam.core.Property',
 
   properties: [
@@ -49,8 +51,26 @@ foam.CLASS({
 });
 
 foam.CLASS({
-  name: '__Property__',
   package: 'foam.core',
+  name: 'ObjectToJSONRefinement',
+  refines: 'foam.core.Object',
+
+  properties: [
+    {
+      name: 'toJSON',
+      value: function toJSON(value, outputter) {
+        return value instanceof Date ?
+            { class: '__Timestamp__', value: value.getTime() } :
+            value;
+      }
+    }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.core',
+  name: '__Property__',
+
   axioms: [
     {
       name: 'create',
@@ -82,8 +102,25 @@ foam.CLASS({
   ]
 });
 
-/** Add toJSON() method to FObject. **/
+
 foam.CLASS({
+  package: 'foam.core',
+  name: '__Class__',
+
+  axioms: [
+    {
+      name: 'create',
+      installInClass: function(clsName) {
+        return foam.lookup(clsName, true);
+      }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.core',
+  name: 'FObjectStringifyRefinement',
   refines: 'foam.core.FObject',
 
   methods: [
@@ -315,7 +352,7 @@ foam.CLASS({
     },
 
     function outputProperty(o, p, includeComma) {
-      if ( ! this.propertyPredicate(o, p ) ) return false;
+      if ( ! this.propertyPredicate(o, p) ) return false;
       if ( ! this.outputDefaultValues && p.isDefaultValue(o[p.name]) )
         return false;
 
@@ -330,7 +367,9 @@ foam.CLASS({
       if ( includeComma ) this.out(',');
 
       this.nl().indent().outputPropertyName(p).out(':', this.postColonStr);
+
       this.output(p.toJSON(v, this), p.of);
+
       return true;
     },
 
@@ -444,7 +483,9 @@ foam.CLASS({
           this.end(']');
         },
         Object: function(o) {
-          if ( o.outputJSON ) {
+          if ( foam.core.FObject.isSubClass(o) ) {
+            this.output({ class: '__Class__', forClass_: o.id });
+          } else if ( o.outputJSON ) {
             o.outputJSON(this);
           } else {
             this.start('{');
@@ -518,7 +559,7 @@ foam.CLASS({
     },
 
     function getCls(opt_cls) {
-      return foam.typeOf(opt_cls) === foam.String ? this.lookup(opt_cls, true) :
+      return foam.typeOf(opt_cls) === foam.String ? this.__context__.lookup(opt_cls, true) :
           opt_cls;
     }
   ]
@@ -650,7 +691,6 @@ foam.LIB({
 
   methods: [
     {
-      // TODO: why is this called parse when it's really objectify?
       name: 'parse',
       code: foam.mmethod({
         Array: function(o, opt_class, opt_ctx) {
@@ -706,20 +746,13 @@ foam.LIB({
           return r;
         } else if ( foam.Object.isInstance(o) ) {
           for ( var key in o ) {
-            // anonymous class support.
-            if ( key === 'class' && foam.Object.isInstance(o[key]) ) {
-              var json = o[key];
-              json.name = 'AnonymousClass' + foam.next$UID();
-              console.log('Constructing anonymous class', json.name);
-
-              r.push(Promise.all(foam.json.references(x, json, [])).then(function() {
-                return x.classloader.fromModel(foam.core.Model.create(json));
-              }));
-
-              o[key] = json.name;
-              continue;
-            } else if ( ( key === 'of' || key === 'class' || key == 'view' ) &&
-                        foam.String.isInstance(o[key]) ) {
+            if ( ( key === 'of' ||
+                   key === 'class' ||
+                   key === 'view' ||
+                   key === 'sourceModel' ||
+                   key === 'targetModel' ||
+                   key === 'refines' ) &&
+                 foam.String.isInstance(o[key]) ) {
               r.push(x.classloader.maybeLoad(o[key]));
               continue;
             }

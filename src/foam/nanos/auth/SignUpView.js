@@ -19,7 +19,6 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'SignUpView',
   extends: 'foam.u2.View',
-  flags: [ 'web' ],
 
   documentation: 'User Registration View',
 
@@ -170,7 +169,7 @@ foam.CLASS({
   ],
 
   methods: [
-    function initE(){
+    function initE() {
       this.SUPER();
       this.agreed = false;
       var self = this;
@@ -222,40 +221,37 @@ foam.CLASS({
           .start('p').add('Already have an account?').end()
           .start('p').addClass('link')
             .add('Sign in.')
-            .on('click', function(){ self.stack.push({ class: 'foam.nanos.auth.SignInView' }) })
+            .on('click', function() {
+              self.stack.push({ class: 'foam.nanos.auth.SignInView' });
+            })
           .end()
         .end()
-      .end()
+      .end();
     },
   ],
 
   actions: [
     {
       name: 'signUp',
-      isEnabled: function(firstName, lastName, email, password){
+      isEnabled: function(firstName, lastName, email, password) {
         return firstName && lastName && email && password;
       },
-      code: function (X, obj) {
+      code: function(X, obj) {
         var self = this;
         var user = self.User.create({
           firstName: self.firstName,
           lastName: self.lastName,
           email: self.email,
           phone: self.phone,
-          password: self.password,
+          desiredPassword: self.password,
           organization: self.organization,
           department: self.department
         });
 
-        this.userDAO.put(user).then(function(user){
+        this.userDAO.put(user).then(function(user) {
           self.user = user;
           X.stack.push({ class: 'foam.nanos.auth.SignInView' });
         });
-        // self.emailUserRegistration.register(user).then(function (user) {
-        //   // Setting controller user as the one created here. May need tuning once auth & email verfication come to play.
-        //   self.user = user;
-        //   X.stack.push({ class: 'foam.nanos.auth.SignInView' });
-        // });
       }
     }
   ]

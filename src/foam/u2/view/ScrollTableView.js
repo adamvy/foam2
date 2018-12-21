@@ -16,6 +16,14 @@
     'foam.u2.view.TableView'
   ],
 
+  constants: [
+    {
+      type: 'Integer',
+      name: 'TABLE_HEAD_HEIGHT',
+      value: 40
+    }
+  ],
+
   properties: [
     {
       class: 'foam.dao.DAOProperty',
@@ -33,23 +41,57 @@
     },
     {
       class: 'foam.dao.DAOProperty',
-      name: 'scrolledDao',
+      name: 'scrolledDAO',
       expression: function(data, limit, skip) {
-        return data.limit(limit).skip(skip);
+        return data && data.limit(limit).skip(skip);
       },
     },
     'columns',
     {
+      class: 'FObjectArray',
+      of: 'foam.core.Action',
+      name: 'contextMenuActions'
+    },
+    {
       class: 'Int',
       name: 'daoCount'
     },
-    'selection'
+    'selection',
+    {
+      class: 'Boolean',
+      name: 'editColumnsEnabled',
+      documentation: `
+        Set to true if users should be allowed to choose which columns to use.
+      `,
+      value: true
+    },
+    {
+      class: 'Int',
+      name: 'rowHeight',
+      documentation: 'The height of one row of the table in px.',
+      value: 40
+    },
+    {
+      class: 'Boolean',
+      name: 'fitInScreen',
+      documentation: `
+        If true, the table height will be dynamically set such that the table
+        will not overflow off of the bottom of the page.
+      `,
+      value: false
+    },
+    {
+      name: 'table_',
+      documentation: `
+        A reference to the table element we use in the fitInScreen calculations.
+      `
+    }
   ],
 
   methods: [
     function init() {
-      this.onDetach(this.data$proxy.listen(this.FnSink.create({fn:this.onDaoUpdate})));
-      this.onDaoUpdate();
+      this.onDetach(this.data$proxy.listen(this.FnSink.create({fn:this.onDAOUpdate})));
+      this.onDAOUpdate();
     },
 
     function initE() {
@@ -59,20 +101,30 @@
         start('tr').
           start('td').
             style({ 'vertical-align': 'top' }).
-            start(this.TableView, {data$: this.scrolledDao$, columns: this.columns, selection$: this.selection$}).
+            start(this.TableView, {
+              data$: this.scrolledDAO$,
+              columns: this.columns,
+              contextMenuActions: this.contextMenuActions,
+              selection$: this.selection$,
+              editColumnsEnabled: this.editColumnsEnabled
+            }, this.table_$).
             end().
           end().
           start('td').style({ 'vertical-align': 'top' }).
-            add(this.ScrollCView.create({
-              value$: this.skip$,
-              extent$: this.limit$,
-              height: 40*18+41, // TODO use window height.
-              width: 15,
-              size$: this.daoCount$,
+            add(this.slot(function(limit) {
+              return this.ScrollCView.create({
+                value$: this.skip$,
+                extent$: this.limit$,
+                height: this.rowHeight * limit + this.TABLE_HEAD_HEIGHT,
+                width: 18,
+                size$: this.daoCount$,
+              });
             })).
           end().
         end().
       end();
+
+      if ( this.fitInScreen ) this.onload.sub(this.updateTableHeight);
     }
   ],
 
@@ -82,21 +134,35 @@
       code: function(e) {
         var negative = e.deltaY < 0;
         // Convert to rows, rounding up. (Therefore minumum 1.)
-        var rows = Math.ceil(Math.abs(e.deltaY) / /*self.rowHeight*/ 40);
-        this.skip += negative ? -rows : rows;
-        e.preventDefault();
+        var rows = Math.ceil(Math.abs(e.deltaY) / 40);
+        this.skip = Math.max(0, this.skip + (negative ? -rows : rows));
+        if ( e.deltaY !== 0 ) e.preventDefault();
       }
     },
     {
-      // TODO Avoid onDaoUpdate approaches.
-      name: 'onDaoUpdate',
+      // TODO: Avoid onDAOUpdate approaches.
+      name: 'onDAOUpdate',
       isFramed: true,
       code: function() {
         var self = this;
         this.data$proxy.select(this.Count.create()).then(function(s) {
           self.daoCount = s.value;
         })
-      },
+      }
     },
+    {
+      name: 'updateTableHeight',
+      code: function() {
+        // Find the distance from the top of the table to the top of the screen.
+        var distanceFromTop = this.table_.el().getBoundingClientRect().y;
+
+        // Calculate the remaining space we have to make use of.
+        var remainingSpace = window.innerHeight - distanceFromTop;
+
+        // Set the limit such that we make maximum use of the space without
+        // overflowing.
+        this.limit = Math.max(1, Math.floor((remainingSpace - this.TABLE_HEAD_HEIGHT) / this.rowHeight));
+      }
+    }
   ]
 });

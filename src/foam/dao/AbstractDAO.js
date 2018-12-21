@@ -84,6 +84,7 @@ return getOf() == null ? null : (foam.core.PropertyInfo) getOf().getAxiomByName(
       code: function(x) {
         return this.ProxyDAO.create({delegate: this}, x);
       },
+      swiftCode: `return ProxyDAO_create(["delegate": self], x)`,
       javaCode: `return new ProxyDAO.Builder(x).setDelegate(this).build();`,
     },
 
@@ -105,9 +106,7 @@ return getOf() == null ? null : (foam.core.PropertyInfo) getOf().getAxiomByName(
           "predicate": predicate,
         ]);
       */},
-      javaCode: `
-return new FilteredDAO(predicate, this);
-      `,
+      javaCode: 'return new FilteredDAO.Builder(getX()).setPredicate(predicate).setDelegate(this).build();'
     },
 
     {
@@ -122,8 +121,14 @@ return new FilteredDAO(predicate, this);
           comparator: foam.compare.toCompare(Array.from(arguments))
         });
       },
+      swiftCode: `
+return OrderedDAO_create([
+  "delegate": self,
+  "comparator": comparator
+])
+      `,
       javaCode: `
-return new OrderedDAO(comparator, this);
+return new OrderedDAO(this.getX(), comparator, this);
       `,
     },
 
@@ -146,7 +151,7 @@ return SkipDAO_create([
 ])
       */},
       javaCode: `
-return new SkipDAO(count, this);
+return new SkipDAO(this.getX(), count, this);
       `,
     },
 
@@ -169,7 +174,7 @@ return LimitedDAO_create([
 ])
       */},
       javaCode: `
-return new LimitedDAO(count, this);
+return new LimitedDAO(this.getX(), count, this);
       `,
     },
 
@@ -194,7 +199,7 @@ return new LimitedDAO(count, this);
         this.pipe_(this.__context__, sink, undefined);
       },
       swiftCode: 'return try pipe_(__context__, sink)',
-      javaCode: `this.pipe_(this.getX(), sink);`,
+      javaCode: `this.pipe_(this.getX(), sink, null);`,
     },
 
     {
@@ -261,10 +266,10 @@ return on.sub(listener: { (sub: Subscription, args: [Any?]) -> Void in
   guard let topic = args[1] as? String else { return }
   switch topic {
     case "put":
-      mySink.put(args.last as! FObject, sub)
+      mySink.put(args.last as! foam_core_FObject, sub)
       break
     case "remove":
-      mySink.remove(args.last as! FObject, sub)
+      mySink.remove(args.last as! foam_core_FObject, sub)
       break
     case "reset":
       mySink.reset(sub)
@@ -282,18 +287,16 @@ listeners_.add(new DAOListener(sink, listeners_));
 
     {
       name: 'decorateListener_',
-      swiftReturns: 'Sink',
-      javaReturns: 'Sink',
+      returns: 'foam.dao.Sink',
       args: [
         {
           name: 'sink',
-          swiftType: 'Sink',
-          javaType: 'Sink',
+          type: 'foam.dao.Sink'
         },
         {
           name: 'predicate',
-          swiftType: 'FoamPredicate?',
-          javaType: 'foam.mlang.predicate.Predicate',
+          type: 'foam.mlang.predicate.Predicate',
+          optional: true
         },
       ],
       code: function decorateListener_(sink, predicate) {
@@ -329,33 +332,29 @@ return sink;
     */
     {
       name: 'decorateSink_',
-      swiftReturns: 'Sink',
-      javaReturns: 'foam.dao.Sink',
+      returns: 'foam.dao.Sink',
       args: [
         {
           name: 'sink',
-          swiftType: 'Sink',
-          javaType: 'foam.dao.Sink',
+          type: 'foam.dao.Sink'
         },
         {
           name: 'skip',
-          swiftType: 'Int?',
-          javaType: 'long',
+          type: 'Long'
         },
         {
           name: 'limit',
-          swiftType: 'Int?',
-          javaType: 'long',
+          type: 'Long'
         },
         {
           name: 'order',
-          swiftType: 'Comparator?',
-          javaType: 'foam.mlang.order.Comparator',
+          type: 'foam.mlang.order.Comparator',
+          optional: true
         },
         {
           name: 'predicate',
-          swiftType: 'FoamPredicate?',
-          javaType: 'foam.mlang.predicate.Predicate',
+          type: 'foam.mlang.predicate.Predicate',
+          optional: true
         },
       ],
       code: function decorateSink_(sink, skip, limit, order, predicate) {
@@ -393,13 +392,13 @@ return sink;
       },
       swiftCode: function() {/*
 var sink = sink
-if limit != nil {
+if limit > 0 {
   sink = LimitedSink_create([
     "limit": limit,
     "delegate": sink
   ])
 }
-if skip != nil {
+if skip > 0 {
   sink = SkipSink_create([
     "skip": skip,
     "delegate": sink
@@ -496,7 +495,7 @@ return this.select_(this.getX(), sink, 0, this.MAX_SAFE_INTEGER, null, null);
       javaCode: `
 // Temporary until DAO supports find_(Predicate) directly
 if ( id instanceof foam.mlang.predicate.Predicate ) {
-  java.util.List l = ((ListSink) this.where((foam.mlang.predicate.Predicate) id).limit(1).select(new ListSink())).getData();
+  java.util.List l = ((ArraySink) this.where((foam.mlang.predicate.Predicate) id).limit(1).select(new ArraySink())).getArray();
   return l.size() == 1 ? (foam.core.FObject) l.get(0) : null;
 }
 
@@ -546,27 +545,27 @@ this.select_(x, new RemoveSink(x, this), skip, limit, order, predicate);
       args: [
         {
           name: 'x',
-          javaType: 'foam.core.X',
+          type: 'Context'
         },
         {
           name: 'sink',
-          javaType: 'foam.dao.Sink',
+          type: 'foam.dao.Sink',
         },
         {
           name: 'skip',
-          javaType: 'long',
+          type: 'Long'
         },
         {
           name: 'limit',
-          javaType: 'long',
+          type: 'Long'
         },
         {
           name: 'order',
-          javaType: 'foam.mlang.order.Comparator',
+          type: 'foam.mlang.order.Comparator'
         },
         {
           name: 'predicate',
-          javaType: 'foam.mlang.predicate.Predicate',
+          type: 'foam.mlang.predicate.Predicate'
         },
       ],
       javaCode: `
@@ -668,7 +667,7 @@ protected void onReset() {
 }
 
 protected Sink prepareSink(Sink s) {
-  return s == null ? new ListSink() : s;
+  return s == null ? new ArraySink() : s;
 }
 
 public Sink select() {
@@ -699,95 +698,6 @@ foam.CLASS({
   implements: ['foam.core.Exception']
 })
 
-
-foam.CLASS({
-  package: 'foam.dao',
-  name: 'FilteredDAO',
-  extends: 'foam.dao.AbstractDAO',
-
-  requires: [
-    'foam.mlang.predicate.And'
-  ],
-
-  properties: [
-    {
-      // TODO: FObjectProperty of Predicate. Doing this currently breaks java.
-      swiftType: 'FoamPredicate',
-      name: 'predicate',
-      required: true
-    },
-    {
-      name: 'of',
-      factory: function() {
-        return this.delegate.of;
-      },
-      swiftExpressionArgs: ['delegate$of'],
-      swiftExpression: 'return delegate$of as! ClassInfo',
-    },
-    {
-      class: 'Proxy',
-      of: 'foam.dao.DAO',
-      name: 'delegate',
-      topics: [ 'on' ], // TODO: Remove this when all users of it are updated.
-      forwards: [ 'put_', 'remove_', 'find_', 'select_', 'removeAll_', 'cmd_' ]
-    }
-  ],
-
-  methods: [
-    function find_(x, key) {
-      var predicate = this.predicate;
-      return this.delegate.find_(x, key).then(function(o) {
-        return predicate.f(o) ? o : null;
-      });
-    },
-
-    {
-      name: 'select_',
-      code: function(x, sink, skip, limit, order, predicate) {
-        return this.delegate.select_(
-          x, sink, skip, limit, order,
-          predicate ?
-            this.And.create({ args: [this.predicate, predicate] }) :
-            this.predicate);
-      },
-      swiftCode: function() {/*
-return try delegate.select_(
-  x, sink, skip, limit, order,
-  predicate != nil ?
-    And_create(["args": [self.predicate, predicate!] ]) :
-    self.predicate)
-      */},
-    },
-
-    function removeAll_(x, skip, limit, order, predicate) {
-      return this.delegate.removeAll_(
-        x, skip, limit, order,
-        predicate ?
-          this.And.create({ args: [this.predicate, predicate] }) :
-          this.predicate);
-    },
-
-    {
-      name: 'listen_',
-      code: function listen_(x, sink, predicate) {
-        return this.delegate.listen_(
-          x, sink,
-          predicate ?
-            this.And.create({ args: [this.predicate, predicate] }) :
-            this.predicate);
-      },
-      swiftCode: `
-return try delegate.listen_(
-  x, sink,
-  predicate != nil ?
-    And_create(["args": [self.predicate, predicate]]) :
-    predicate)
-      `,
-    },
-  ]
-});
-
-
 foam.CLASS({
   package: 'foam.dao',
   name: 'OrderedDAO',
@@ -795,17 +705,31 @@ foam.CLASS({
 
   properties: [
     {
+      class: 'FObjectProperty',
+      type: 'foam.mlang.order.Comparator',
       name: 'comparator'
     }
   ],
 
   methods: [
-    function select_(x, sink, skip, limit, order, predicate) {
-      return this.delegate.select_(x, sink, skip, limit, order || this.comparator, predicate);
+    {
+      name: 'select_',
+      code: function (x, sink, skip, limit, order, predicate) {
+        return this.delegate.select_(x, sink, skip, limit, order || this.comparator, predicate);
+      },
+      swiftCode: `
+        return try self.delegate.select_(x, sink, skip, limit, order ?? self.comparator ?? nil, predicate);
+      `
     },
-    function removeAll_(x, skip, limit, order, predicate) {
-      return this.delegate.removeAll_(x, skip, limit, order || this.comparator, predicate);
-    }
+    {
+      name: 'removeAll_',
+      code: function (x, skip, limit, order, predicate) {
+        return this.delegate.removeAll_(x, skip, limit, order || this.comparator, predicate);
+      },
+      swiftCode: `
+        return try self.delegate.removeAll_(x, skip, limit, order ?? self.comparator ?? nil, predicate);
+      `
+    },
   ]
 });
 

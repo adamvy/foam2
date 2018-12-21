@@ -34,7 +34,9 @@ foam.CLASS({
           this.resolve_ = resolve;
           this.reject_ = reject;
         }.bind(this));
-      }
+      },
+      swiftType: 'Future<Any?>',
+      swiftFactory: 'return Future()'
     },
     {
       name: 'resolve_'
@@ -76,12 +78,19 @@ foam.CLASS({
           return;
         }
 
-        this.warn('Invalid message to RPCReturnBox.');
+        this.__context__.warn('Invalid message to RPCReturnBox.');
       },
       javaCode: `
-setMessage(message);
+setMessage(msg);
 getSemaphore().release();
-`
+`,
+      swiftCode: `
+if let o = msg.object as? foam_box_RPCReturnMessage {
+  promise.set(o.data)
+  return
+}
+promise.error(FoamError(msg.object))
+      `
     }
   ]
 });

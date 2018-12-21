@@ -5,7 +5,10 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ModelSwiftRefinement',
   refines: 'foam.core.Model',
+  flags: ['swift'],
   requires: [
     'foam.swift.SwiftClass',
   ],
@@ -13,7 +16,9 @@ foam.CLASS({
     {
       class: 'String',
       name: 'swiftName',
-      expression: function(name) { return name; },
+      expression: function(id) {
+        return id.replace(/\./g, '_')
+      },
     },
     {
       class: 'Boolean',
@@ -31,12 +36,16 @@ foam.CLASS({
         // TODO: This should be an expression on extends but putting extends in
         // the args makes js unhappy.
         if ( this.extends == 'FObject' ) return 'AbstractFObject';
-        return foam.lookup(this.extends).model_.swiftName;
+        return this.extends.replace(/\./g, '_');
+//        return foam.lookup(this.extends).model_.swiftName;
       },
     },
     {
       class: 'StringArray',
       name: 'swiftImplements',
+    },
+    {
+      name: 'swiftAllImplements',
     },
     {
       class: 'String',

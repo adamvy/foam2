@@ -10,37 +10,36 @@ foam.INTERFACE({
   methods: [
     {
       name: 'head',
-      swiftReturns: 'Character',
+      returns: 'Char',
     },
     {
       name: 'valid',
-      swiftReturns: 'Bool',
+      returns: 'Boolean',
     },
     {
       name: 'tail',
-      swiftReturns: 'PStream',
+      returns: 'foam.swift.parse.PStream',
     },
     {
       name: 'substring',
-      swiftReturns: 'String',
+      returns: 'String',
       args: [
         {
           name: 'end',
-          swiftType: 'PStream',
+          type: 'foam.swift.parse.PStream',
         },
       ],
     },
     {
       name: 'value',
-      swiftReturns: 'Any?',
+      returns: 'Any',
     },
     {
       name: 'setValue',
-      swiftReturns: 'PStream',
+      returns: 'foam.swift.parse.PStream',
       args: [
         {
           name: 'value',
-          swiftType: 'Any?',
         },
       ],
     },

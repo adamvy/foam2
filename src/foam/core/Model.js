@@ -29,14 +29,17 @@ foam.CLASS({
       transient: true,
       getter: function() {
         return this.package ? this.package + '.' + this.name : this.name;
-      }
+      },
     },
     'package',
     'abstract',
     'name',
     {
       name: 'flags',
-      factory: function() { return []; }
+      documentation: `
+        When set, marks the model with the given flags. This can be used for
+        things like stripping out platform specific models when building.
+      `,
     },
     {
       name: 'label',
@@ -44,6 +47,7 @@ foam.CLASS({
     },
     [ 'extends', 'FObject' ],
     'refines',
+    'order',
     { name: 'documentation', adapt: function(_, d) { return typeof d === 'function' ? foam.String.multiline(d).trim() : d; } },
     {
       // List of all axioms, including methods, properties, listeners,
@@ -58,7 +62,18 @@ foam.CLASS({
       name: 'axioms',
       hidden: true,
       factory: function() { return []; },
-      postSet: function(_, a) { this.axioms_.push.apply(this.axioms_, a); }
+      postSet: function(_, a) { this.axioms_.push.apply(this.axioms_, a); },
+      adapt: function(_, v) {
+        if ( ! Array.isArray(v) ) return v;
+        var copy;
+        for ( var i = 0 ; i < v.length ; i++ ) {
+          if ( v[i].class ) {
+            if ( ! copy ) copy = v.slice();
+            copy[i] = foam.lookup(v[i].class).create(v[i]);
+          }
+        }
+        return copy || v;
+      }
     },
     {
       // Is upgraded to an AxiomArray later.

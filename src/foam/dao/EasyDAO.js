@@ -33,19 +33,28 @@ foam.CLASS({
   requires: [
     'foam.box.Context',
     'foam.box.HTTPBox',
+    'foam.box.RetryBox',
     'foam.box.SessionClientBox',
     'foam.box.SocketBox',
-    'foam.box.WebSocketBox',
     'foam.box.TimeoutBox',
-    'foam.box.RetryBox',
+    'foam.box.WebSocketBox',
     'foam.dao.CachingDAO',
+    'foam.dao.ClientDAO',
     'foam.dao.CompoundDAODecorator',
     'foam.dao.ContextualizingDAO',
-    'foam.dao.DecoratedDAO',
     'foam.dao.DeDupDAO',
+    'foam.dao.DecoratedDAO',
     'foam.dao.GUIDDAO',
     'foam.dao.IDBDAO',
-    'foam.dao.JDAO',
+    {
+      path: 'foam.dao.JDAO',
+      flags: ['js'],
+    },
+    {
+      name: 'JDAOJava',
+      path: 'foam.dao.java.JDAO',
+      flags: ['java'],
+    },
     'foam.dao.LoggingDAO',
     'foam.dao.MDAO',
     'foam.dao.PromisedDAO',
@@ -57,16 +66,20 @@ foam.CLASS({
 
   imports: [ 'document' ],
 
-  constants: {
-    // Aliases for daoType
-    ALIASES: {
-      ARRAY:  'foam.dao.ArrayDAO',
-      CLIENT: 'foam.dao.RequestResponseClientDAO',
-      IDB:    'foam.dao.IDBDAO',
-      LOCAL:  'foam.dao.LocalStorageDAO',
-      MDAO:   'foam.dao.MDAO'
+  constants: [
+    {
+      // Aliases for daoType
+      name: 'aliases',
+      flags: [ 'js' ],
+      value: {
+        ARRAY:  'foam.dao.ArrayDAO',
+        CLIENT: 'foam.dao.RequestResponseClientDAO',
+        IDB:    'foam.dao.IDBDAO',
+        LOCAL:  'foam.dao.LocalStorageDAO',
+        MDAO:   'foam.dao.MDAO'
+      }
     }
-  },
+  ],
 
   properties: [
     {
@@ -87,7 +100,7 @@ foam.dao.DAO delegate = getInnerDAO() == null ?
 if ( delegate instanceof foam.dao.MDAO ) setMdao((foam.dao.MDAO)delegate);
 
 if ( getJournaled() ) {
-  delegate = new foam.dao.JDAO(getX(), delegate, getJournalName());
+  delegate = new foam.dao.java.JDAO(getX(), delegate, getJournalName());
 }
 
 if ( getGuid() && getSeqNo() ) {
@@ -111,6 +124,13 @@ if ( getContextualize() ) {
     build();
 }
 
+if ( getAuthenticate() ) {
+  delegate = new foam.dao.AuthenticatedDAO(
+    getName(),
+    getAuthenticateRead(),
+    delegate);
+}
+
 if ( getPm() ) {
   delegate = new foam.dao.PMDAO(delegate);
 }
@@ -120,7 +140,7 @@ return delegate;
     },
     {
       class: 'Object',
-      javaType: 'foam.dao.DAO',
+      type: 'foam.dao.DAO',
       name: 'innerDAO'
     },
     {
@@ -155,6 +175,18 @@ return delegate;
       name: 'cache',
       generateJava: false,
       value: false
+    },
+    {
+      /** Enable standard authentication. */
+      class: 'Boolean',
+      name: 'authenticate',
+      value: true
+    },
+    {
+      /** Enable standard read authentication. */
+      class: 'Boolean',
+      name: 'authenticateRead',
+      value: true
     },
     {
       /** Enable value de-duplication to save memory when caching. */
@@ -345,11 +377,11 @@ return delegate;
       }
 
       var daoModel = typeof daoType === 'string' ?
-        this.lookup(daoType) || global[daoType] :
+        this.__context__.lookup(daoType) || global[daoType] :
         daoType;
 
       if ( ! daoModel ) {
-        this.warn(
+        this.__context__.warn(
           "EasyDAO: Unknown DAO Type.  Add '" + daoType + "' to requires: list."
         );
       }
@@ -508,7 +540,6 @@ return delegate;
     {
       name: 'addPropertyIndex',
       returns: 'foam.dao.EasyDAO',
-      javaReturns: 'foam.dao.EasyDAO',
       args: [ { javaType: 'foam.core.PropertyInfo', name: 'prop' } ],
       code:     function addPropertyIndex() {
         this.mdao && this.mdao.addPropertyIndex.apply(this.mdao, arguments);
@@ -530,7 +561,7 @@ return this;
     {
       name: 'addIndex',
       returns: 'foam.dao.EasyDAO',
-      javaReturns: 'foam.dao.EasyDAO',
+      // TODO: The java Index interface conflicts with the js CLASS Index
       args: [ { javaType: 'foam.dao.index.Index', name: 'index' } ],
       code: function addIndex(index) {
         this.mdao && this.mdao.addIndex.apply(this.mdao, arguments);

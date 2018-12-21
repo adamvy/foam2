@@ -8,7 +8,6 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'PhoneDetailView',
   extends: 'foam.u2.View',
-  flags: [ 'web' ],
 
   documentation: 'Phone Detail View',
 

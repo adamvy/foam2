@@ -123,14 +123,19 @@ foam.CLASS({
       line-height: 2.86;
       cursor: pointer;
     }
-
   `,
-
 
   properties: [
     {
       class: 'EMail',
       name: 'email'
+    },
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'signInView',
+      factory: function() {
+        return { class: 'foam.nanos.auth.SignInView'};
+      }
     }
   ],
 
@@ -156,10 +161,10 @@ foam.CLASS({
         .start('p').addClass('link')
           .add('Sign in.')
           .on('click', function() {
-            self.stack.push({ class: 'foam.nanos.auth.SignInView' });
+            self.stack.push( self.signInView );
           })
         .end()
-      .end()
+      .end();
     }
   ],
 
@@ -169,7 +174,7 @@ foam.CLASS({
       code: function (X) {
         var self = this;
         var user = this.User.create({ email: this.email });
-        this.resetPasswordToken.generateToken(user).then(function (result) {
+        this.resetPasswordToken.generateToken(null, user).then(function (result) {
           if ( ! result ) {
             throw new Error('Error generating reset token');
           }

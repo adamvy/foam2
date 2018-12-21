@@ -20,7 +20,6 @@ foam.CLASS({
   name: 'WebModelFileDAO',
   extends: 'foam.dao.ProxyDAO',
   requires: [
-    'foam.apploader.JSON2ModelFileDAO',
     'foam.apploader.ModelFileDAO',
     'foam.apploader.WebModelFileFetcher',
     'foam.net.HTTPRequest',
@@ -30,14 +29,12 @@ foam.CLASS({
   ],
   properties: [
     'root',
-    'json2',
     {
       name: 'delegate',
-      factory: function() {
-        var cls = this.json2 ? this.JSON2ModelFileDAO : this.ModelFileDAO;
-        return cls.create({
-          fetcher: this.WebModelFileFetcher.create({root: this.root}), });
+      expression: function(root) {
+        return this.ModelFileDAO.create({
+          fetcher: this.WebModelFileFetcher.create({root: root}), });
       },
-    }
-  ]
+    },
+  ],
 });

@@ -29,7 +29,9 @@ foam.CLASS({
       name: 'view',
       value: {class: 'foam.comics.InlineBrowserView'},
     },
-    ['of', 'foam.dao.DAO']
+    ['transient', true],
+    ['of', 'foam.dao.DAO'],
+    ['javaInfoType', 'foam.core.AbstractDAOPropertyPropertyInfo']
   ],
 
   methods: [
@@ -52,6 +54,12 @@ foam.CLASS({
         },
         configurable: true
       });
+    },
+    function createJavaPropertyInfo_(cls) {
+      var info = this.SUPER(cls);
+      var compare = info.getMethod('compare');
+      compare.body = 'return 0;';
+      return info;
     }
   ]
 });

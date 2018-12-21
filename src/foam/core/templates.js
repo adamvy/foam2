@@ -59,7 +59,8 @@ foam.CLASS({
   axioms: [ foam.pattern.Singleton.create() ],
 
   requires: [
-    'foam.parse.ImperativeGrammar as Grammar'
+    'foam.parse.ImperativeGrammar as Grammar',
+    'foam.templates.TemplateOutput',
   ],
 
   constants: {
@@ -210,6 +211,10 @@ foam.CLASS({
   name: 'TemplateAxiom',
   extends: 'Method',
 
+  requires: [
+    'foam.templates.TemplateUtil',
+  ],
+
   properties: [
     {
       name: 'template',
@@ -240,7 +245,7 @@ foam.CLASS({
       class: 'AxiomArray',
       of: 'foam.templates.TemplateAxiom',
       adaptArrayElement: function(o, prop) {
-        return this.lookup(prop.of).create(o);
+        return this.__context__.lookup(prop.of).create(o);
       }
     }
   ]

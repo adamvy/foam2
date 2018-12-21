@@ -205,8 +205,6 @@ foam.CLASS({
     function output(out) {},
     function load() {},
     function unload() {},
-    function onLoad() {},
-    function onUnload() {},
     function onRemove() {},
     function onSetClass() {},
     function onFocus() {},
@@ -242,18 +240,16 @@ foam.CLASS({
 
   methods: [
     function output(out) {
+      this.__context__.warn('Outputting unloaded element can cause event/binding bugs.', this.cls_.id);
       this.state = this.OUTPUT;
       this.output_(out);
       return out;
     },
-    function onLoad(f) {
-      this.onload.sub(f);
-    },
-    function onUnload(f) {
-      f();
-    },
     function load() {
-      this.error('Must output before loading.');
+      this.__context__.warn('Must output before loading.');
+    },
+    function unload() {
+      this.__context__.warn('Must output before loading.');
     },
     function toString() { return 'UNLOADED'; }
   ]
@@ -270,7 +266,9 @@ foam.CLASS({
   methods: [
     function output(out) {
       this.initE();
-      return this.SUPER(out);
+      this.state = this.OUTPUT;
+      this.output_(out);
+      return out;
     },
     function toString() { return 'INITIAL'; }
   ]
@@ -287,7 +285,7 @@ foam.CLASS({
   methods: [
     function output(out) {
       // TODO: raise a real error
-      this.warn('ERROR: Duplicate output.');
+      this.__context__.warn('ERROR: Duplicate output.');
       return this.UNLOADED.output.call(this, out);
     },
     function load() {
@@ -300,6 +298,7 @@ foam.CLASS({
 
       this.visitChildren('load');
       this.state = this.LOADED;
+      if ( this.tabIndex ) this.setAttribute('tabindex', this.tabIndex);
       if ( this.focused ) this.el().focus();
       // Allows you to take the DOM element and map it back to a
       // foam.u2.Element object.  This is expensive when building
@@ -344,10 +343,10 @@ foam.CLASS({
 
   methods: [
     function output(out) {
-      this.warn('Duplicate output.');
+      this.__context__.warn('Duplicate output.');
       return this.UNLOADED.output.call(this, out);
     },
-    function load() { this.error('Duplicate load.'); },
+    function load() { this.__context__.error('Duplicate load.'); },
     function onLoad(f) {
       f();
     },
@@ -365,6 +364,7 @@ foam.CLASS({
 
       this.state = this.UNLOADED;
       this.visitChildren('unload');
+      this.detach();
     },
     function onRemove() { this.unload(); },
     function onSetClass(cls, enabled) {
@@ -372,7 +372,7 @@ foam.CLASS({
       if ( e ) {
         e.classList[enabled ? 'add' : 'remove'](cls);
       } else {
-        this.warn('Missing Element: ', this.id);
+        this.__context__.warn('Missing Element: ', this.id);
       }
     },
     function onFocus() {
@@ -404,7 +404,7 @@ foam.CLASS({
     function onAddChildren() {
       var e = this.el();
       if ( ! e ) {
-        this.warn('Missing Element: ', this.id);
+        this.__context__.warn('Missing Element: ', this.id);
         return;
       }
       var out = this.createOutputStream();
@@ -419,7 +419,7 @@ foam.CLASS({
     function onInsertChildren(children, reference, where) {
       var e = this.el();
       if ( ! e ) {
-        this.warn('Missing Element: ', this.id);
+        this.__context__.warn('Missing Element: ', this.id);
         return;
       }
       var out = this.createOutputStream();
@@ -443,7 +443,7 @@ foam.CLASS({
     function onReplaceChild(oldE, newE) {
       var e = this.el();
       if ( ! e ) {
-        this.warn('Missing Element: ', this.id);
+        this.__context__.warn('Missing Element: ', this.id);
         return;
       }
       var out = this.createOutputStream();
@@ -465,43 +465,69 @@ foam.CLASS({
   ]
 });
 
-
 foam.CLASS({
   package: 'foam.u2',
   name: 'RenderSink',
-  implements: [ 'foam.dao.Sink' ],
+  implements: [
+    'foam.dao.Sink'
+  ],
+
+  documentation: `
+    Any call to put, remove, or reset on this sink will:
+
+      1. call the 'cleanup' method, then
+      2. call the 'addRow' method on each object in the DAO.
+
+    You must provide three things:
+
+      1. the DAO,
+      2. an implementation of the 'addRow' method, and
+      3. an implementation of the 'cleanup' method.
+  `,
+
   axioms: [
     {
       class: 'foam.box.Remote',
       clientClass: 'foam.dao.ClientSink'
     }
   ],
+
   properties: [
     {
-      class: 'Function',
-      name: 'addRow'
+      class: 'foam.dao.DAOProperty',
+      name: 'dao',
     },
     {
       class: 'Function',
-      name: 'cleanup'
+      name: 'addRow',
+      documentation: `Called on each object in the DAO.`
     },
-    'dao',
+    {
+      class: 'Function',
+      name: 'cleanup',
+      documentation: `Called before addRow is applied to objects in the DAO.`
+    },
     {
       class: 'Int',
-      name: 'batch'
+      name: 'batch',
+      documentation: `Used to check whether a paint should be performed or not.`
     }
   ],
+
   methods: [
     function put(obj, s) {
       this.reset();
     },
+
     function remove(obj, s) {
       this.reset();
     },
+
     function reset() {
       this.paint();
     }
   ],
+
   listeners: [
     {
       name: 'paint',
@@ -509,6 +535,11 @@ foam.CLASS({
       code: function() {
         var batch = ++this.batch;
         var self = this;
+
+        if ( ! foam.dao.DAO.isInstance(this.dao) ) {
+          throw new Exception(`You must set the 'dao' property of RenderSink.`);
+        }
+
         this.dao.select().then(function(a) {
           // Check if this is a stale render
           if ( self.batch !== batch ) return;
@@ -523,6 +554,7 @@ foam.CLASS({
     }
   ]
 });
+
 
 foam.CLASS({
   package: 'foam.u2',
@@ -559,13 +591,21 @@ foam.CLASS({
     //
     //   return e;
     // },
-  `,
+`,
 
   requires: [
+    {
+      path: 'foam.core.PromiseSlot',
+      flags: ['js'],
+    },
+    {
+      path: 'foam.u2.ViewSpec',
+      flags: ['js'],
+    },
+    'foam.dao.MergedResetSink',
     'foam.u2.AttrSlot',
-    'foam.u2.DefaultValidator',
     'foam.u2.Entity',
-    'foam.u2.ViewSpec'
+    'foam.u2.RenderSink',
   ],
 
   imports: [
@@ -582,6 +622,10 @@ foam.CLASS({
 
   constants: [
     {
+      name: 'CSS_CLASSNAME_PATTERN',
+      factory: function() { return /^[a-z_-][a-z\d_-]*$/i; }
+    },
+    {
       documentation: `
         Psedo-attributes don't work consistently with setAttribute() so need to
         be set on the real DOM element directly.
@@ -590,12 +634,14 @@ foam.CLASS({
       value: {
         value: true,
         checked: true
-      },
+      }
     },
 
     {
       name: 'DEFAULT_VALIDATOR',
-      factory: function() { return foam.u2.DefaultValidator.create() },
+      type: 'foam.u2.DefaultValidator',
+      flags: ['js'],
+      factory: function() { return foam.u2.DefaultValidator.create(); }
     },
 
     {
@@ -606,7 +652,9 @@ foam.CLASS({
         to try and mutate the Element while in the OUTPUT state.
       `,
       name: 'OUTPUT',
-      factory: function() { return foam.u2.OutputElementState.create() },
+      type: 'foam.u2.OutputElementState',
+      flags: ['js'],
+      factory: function() { return foam.u2.OutputElementState.create(); }
     },
 
     {
@@ -615,7 +663,9 @@ foam.CLASS({
         A Loaded Element should be visible in the DOM.
       `,
       name: 'LOADED',
-      factory: function() { return foam.u2.LoadedElementState.create() },
+      type: 'foam.u2.LoadedElementState',
+      flags: ['js'],
+      factory: function() { return foam.u2.LoadedElementState.create(); }
     },
 
     {
@@ -624,7 +674,9 @@ foam.CLASS({
         An unloaded Element can be readded to the DOM.
       `,
       name: 'UNLOADED',
-      factory: function() { return foam.u2.UnloadedElementState.create() },
+      type: 'foam.u2.UnloadedElementState',
+      flags: ['js'],
+      factory: function() { return foam.u2.UnloadedElementState.create(); }
     },
 
     {
@@ -632,9 +684,11 @@ foam.CLASS({
         Initial state of an Element before it has been added to the DOM.
       `,
       name: 'INITIAL',
+      type: 'foam.u2.InitialElementState',
+      flags: ['js'],
       factory: function() {
         return foam.u2.InitialElementState.create();
-      },
+      }
     },
 
     // ???: Add DESTROYED State?
@@ -682,25 +736,26 @@ foam.CLASS({
         LINK: true,
         META: true,
         PARAM: true
-      },
+      }
     },
 
     {
       name: '__ID__',
-      value: [ 0 ],
+      value: [ 0 ]
     },
 
     {
       name: 'NEXT_ID',
+      flags: ['js'],
       value: function() {
         return 'v' + this.__ID__[ 0 ]++;
-      },
+      }
     },
 
     {
       documentation: `Keys which respond to keydown but not keypress`,
       name: 'KEYPRESS_CODES',
-      value: { 8: true, 13: true, 27: true, 33: true, 34: true, 37: true, 38: true, 39: true, 40: true },
+      value: { 8: true, 13: true, 27: true, 33: true, 34: true, 37: true, 38: true, 39: true, 40: true }
     },
 
     {
@@ -726,8 +781,16 @@ foam.CLASS({
     }
   `,
 
+  messages: [
+    {
+      name: 'SELECT_BAD_USAGE',
+      message: `You're using Element.select() wrong. The function passed to it must return an Element. Don't try to modify the view by side effects.`
+    }
+  ],
+
   properties: [
     {
+      class: 'String',
       name: 'id',
       transient: true,
       factory: function() { return this.NEXT_ID(); }
@@ -736,11 +799,14 @@ foam.CLASS({
       name: 'state',
       class: 'Proxy',
       of: 'foam.u2.ElementState',
+      flags: ['js'],
       transient: true,
       topics: [],
       delegates: foam.u2.ElementState.getOwnAxiomsByClass(foam.core.Method).
           map(function(m) { return m.name; }),
-      factory: function() { return this.INITIAL; },
+      factory: function() {
+        return this.INITIAL;
+      },
       postSet: function(oldState, state) {
         if ( state === this.LOADED ) {
           this.pub('onload');
@@ -777,6 +843,7 @@ foam.CLASS({
       class: 'Proxy',
       of: 'foam.u2.DefaultValidator',
       name: 'validator',
+      flags: ['js'],
       topics: [],
       factory: function() {
         return this.elementValidator$ ? this.elementValidator : this.DEFAULT_VALIDATOR;
@@ -860,6 +927,10 @@ foam.CLASS({
     },
     {
       name: 'scrollHeight',
+    },
+    {
+      class: 'Int',
+      name: 'tabIndex',
     },
     {
       name: 'clickTarget_'
@@ -976,7 +1047,7 @@ foam.CLASS({
 
         // Ensure that target is focusable, and therefore will capture keydown
         // and keypress events.
-        target.setAttribute('tabindex', target.tabIndex || 1);
+        target.tabIndex = target.tabIndex || 1;
 
         target.on('keydown',  this.onKeyboardShortcut);
         target.on('keypress', this.onKeyboardShortcut);
@@ -1073,7 +1144,7 @@ foam.CLASS({
       if ( opt_shown === undefined ) {
         this.shown = true;
       } else if ( foam.core.Slot.isInstance(opt_shown) ) {
-        this.shown$.follow(opt_shown);
+        this.onDetach(this.shown$.follow(opt_shown));
       } else {
         this.shown = !! opt_shown;
       }
@@ -1102,6 +1173,8 @@ foam.CLASS({
 
       // TODO: type checking
 
+      if ( name === 'tabindex' ) this.tabIndex = parseInt(value);
+
       // handle slot binding, ex.: data$: ...,
       // Remove if we add a props() method
       if ( name.endsWith('$') ) {
@@ -1119,14 +1192,14 @@ foam.CLASS({
           // TODO: remove check when all properties have fromString()
           this[name] = prop.fromString ? prop.fromString(value) : value;
         } else if ( foam.core.Slot.isInstance(value) ) {
-          this.slot(name).follow(value);
+          this.onDetach(this.slot(name).follow(value));
         } else {
           this[name] = value;
         }
       } else {
         if ( value === undefined || value === null || value === false ) {
           this.removeAttribute(name);
-          return;
+          return this;
         }
 
         if ( foam.core.Slot.isInstance(value) ) {
@@ -1149,6 +1222,8 @@ foam.CLASS({
           this.onSetAttr(name, value);
         }
       }
+
+      return this;
     },
 
     function removeAttribute(name) {
@@ -1317,7 +1392,7 @@ foam.CLASS({
           self.addClass_(lastValue, v);
           lastValue = v;
         };
-        cls.sub(l);
+        this.onDetach(cls.sub(l));
         l();
       } else if ( typeof cls === 'string' ) {
         this.addClass_(null, cls);
@@ -1342,7 +1417,7 @@ foam.CLASS({
         var self = this;
         var value = enabled;
         var l = function() { self.enableClass(cls, value.get(), opt_negate); };
-        value.sub(l);
+        this.onDetach(value.sub(l));
         l();
       } else {
         enabled = negate(enabled, opt_negate);
@@ -1369,13 +1444,8 @@ foam.CLASS({
       return this;
     },
 
-    function on(topic, listener/* args...*/) {
+    function on(topic, listener) {
       /* Shorter fluent version of addEventListener. Prefered method. */
-      if ( arguments.length > 2 ) {
-        var args = Array.from(arguments).slice(2);
-        var l = listener;
-        listener = function() { l.apply(null, args); };
-      }
       this.addEventListener(topic, listener);
       return this;
     },
@@ -1495,6 +1565,8 @@ foam.CLASS({
             e = this.slotE_(e);
           }
           es.push(e);
+        } else if ( c.then ) {
+          this.add(this.PromiseSlot.create({ promise: c }));
         } else if ( typeof c === 'function' ) {
           throw new Error('Unsupported');
         } else if ( foam.core.Slot.isInstance(c) ) {
@@ -1558,7 +1630,7 @@ foam.CLASS({
         this.add.apply(this, slot.get());
       }.bind(this);
 
-      slot.sub(l);
+      this.onDetach(slot.sub(l));
       l();
 
       return this;
@@ -1578,14 +1650,27 @@ foam.CLASS({
         sink: sink
       });
 
+      this.onDetach(slot);
+
       return slot;
     },
 
+    /**
+     * Given a DAO and a function that maps from a record in that DAO to an
+     * Element, call the function with each record as an argument and add the
+     * returned elements to the view.
+     * Will update the view whenever the contents of the DAO change.
+     * @param {DAO<T>} dao The DAO to use as a data source
+     * @param {T -> Element} f A function to be called on each record in the DAO. Should
+     * return an Element that represents the view of the record passed to it.
+     * @param {Boolean} update True if you'd like changes to each record to be put to
+     * the DAO
+     */
     function select(dao, f, update) {
       var es   = {};
       var self = this;
 
-      var listener = foam.u2.RenderSink.create({
+      var listener = this.RenderSink.create({
         dao: dao,
         addRow: function(o) {
           if ( update ) o = o.clone();
@@ -1593,6 +1678,11 @@ foam.CLASS({
           self.startContext({data: o});
 
           var e = f.call(self, o);
+
+          // By checking for undefined, f can still return null if it doesn't
+          // want anything to be added.
+          if ( e === undefined )
+            this.__context__.warn(self.SELECT_BAD_USAGE);
 
           if ( update ) {
             o.propertyChange.sub(function(_,__,prop,slot) {
@@ -1610,23 +1700,18 @@ foam.CLASS({
           es[o.id] = e;
         },
         cleanup: function() {
-          for ( var key in es ) {
-            es[key].remove();
-          }
+          for ( var key in es ) es[key] && es[key].remove();
 
           es = {};
         }
       }, this);
 
-      listener = foam.dao.MergedResetSink.create({
+      listener = this.MergedResetSink.create({
         delegate: listener
       }, this);
 
-      this.whileLoaded(function() {
-        var s = dao.listen(listener);
-        listener.delegate.paint();
-        return s;
-      });
+      this.onDetach(dao.listen(listener));
+      listener.delegate.paint();
 
       return this;
     },
@@ -1648,11 +1733,20 @@ foam.CLASS({
       return this;
     },
 
-    function forEach(a, f) {
-      for ( var i = 0 ; i < a.length ; i++ ) {
-        f.call(this, a[i], i);
-      }
+    function callIfElse(bool, iff, elsef, args) {
+      (bool ? iff : elsef).apply(this, args);
 
+      return this;
+    },
+
+    /**
+     * Call the given function on each element in the array. In the function,
+     * `this` will refer to the element.
+     * @param {Array} array An array to loop over.
+     * @param {Function} fn A function to call for each item in the given array.
+     */
+    function forEach(array, fn) {
+      array.forEach(fn.bind(this));
       return this;
     },
 
@@ -1725,7 +1819,7 @@ foam.CLASS({
       var i = this.childNodes.indexOf(reference);
 
       if ( i === -1 ) {
-        this.warn("Reference node isn't a child of this.");
+        this.__context__.warn("Reference node isn't a child of this.");
         return this;
       }
 
@@ -1754,8 +1848,12 @@ foam.CLASS({
     function addClass_(oldClass, newClass) {
       /* Replace oldClass with newClass. Called by cls(). */
       if ( oldClass === newClass ) return;
-      this.removeClass(oldClass);
+      if ( oldClass ) this.removeClass(oldClass);
       if ( newClass ) {
+        if ( ! this.CSS_CLASSNAME_PATTERN.test(newClass) ) {
+          console.log('!!!!!!!!!!!!!!!!!!! Invalid CSS ClassName: ', newClass);
+          throw "Invalid CSS classname";
+        }
         this.classes[newClass] = true;
         this.onSetClass(newClass, true);
       }
@@ -1765,7 +1863,7 @@ foam.CLASS({
       /* Set an attribute based off of a dynamic Value. */
       var self = this;
       var l = function() { self.setAttribute(key, value.get()); };
-      value.sub(l);
+      this.onDetach(value.sub(l));
       l();
     },
 
@@ -1773,7 +1871,7 @@ foam.CLASS({
       /* Set a CSS style based off of a dynamic Value. */
       var self = this;
       var l = function(value) { self.style_(key, v.get()); };
-      v.sub(l);
+      this.onDetach(v.sub(l));
       l();
     },
 
@@ -1972,10 +2070,23 @@ foam.CLASS({
   ]
 });
 
-foam.__context__ = foam.u2.U2Context.create().__subContext__;
+
+foam.SCRIPT({
+  package: 'foam.u2',
+  name: 'U2ContextScript',
+  requires: [
+    'foam.u2.U2Context',
+  ],
+  flags: ['web'],
+  code: function() {
+    foam.__context__ = foam.u2.U2Context.create().__subContext__;
+  }
+});
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'FObjectToERefinement',
   refines: 'foam.core.FObject',
   methods: [
     function toE(args, X) {
@@ -1988,6 +2099,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'SlotToERefinement',
   refines: 'foam.core.Slot',
   methods: [
     function toE() { return this; }
@@ -1996,6 +2109,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'ExpressionSlotToERefinement',
   refines: 'foam.core.ExpressionSlot',
   methods: [
     function toE() { return this; }
@@ -2004,6 +2119,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'PropertyViewRefinements',
   refines: 'foam.core.Property',
 
   requires: [
@@ -2049,6 +2166,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'StringDisplayWidthRefinement',
   refines: 'foam.core.String',
   properties: [
     {
@@ -2061,6 +2180,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'StringArrayViewRefinement',
   refines: 'foam.core.StringArray',
   properties: [
     [ 'view', { class: 'foam.u2.view.StringArrayView' } ]
@@ -2069,6 +2190,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'DateViewRefinement',
   refines: 'foam.core.Date',
   requires: [ 'foam.u2.DateView' ],
   properties: [
@@ -2078,6 +2201,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'DateTimeViewRefinement',
   refines: 'foam.core.DateTime',
   requires: [ 'foam.u2.DateTimeView' ],
   properties: [
@@ -2087,6 +2212,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'TimeViewRefinement',
   refines: 'foam.core.Time',
   requires: [ 'foam.u2.TimeView' ],
   properties: [
@@ -2096,6 +2223,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'FloatViewRefinement',
   refines: 'foam.core.Float',
   requires: [ 'foam.u2.FloatView' ],
   properties: [
@@ -2106,6 +2235,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'IntViewRefinement',
   refines: 'foam.core.Int',
   requires: [ 'foam.u2.IntView' ],
   properties: [
@@ -2116,6 +2247,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'CurrencyViewRefinement',
   refines: 'foam.core.Currency',
   requires: [ 'foam.u2.CurrencyView' ],
   properties: [
@@ -2126,6 +2259,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'BooleanViewRefinement',
   refines: 'foam.core.Boolean',
   requires: [ 'foam.u2.CheckBox' ],
   properties: [
@@ -2135,6 +2270,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'ColorViewRefinement',
   refines: 'foam.core.Color',
   properties: [
     {
@@ -2150,6 +2287,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'FObjectPropertyViewRefinement',
   refines: 'foam.core.FObjectProperty',
   properties: [
     {
@@ -2161,6 +2300,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'FObjectArrayViewRefinement',
   refines: 'foam.core.FObjectArray',
   properties: [
     {
@@ -2172,6 +2313,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'ClassViewRefinement',
   refines: 'foam.core.Class',
   properties: [
     [ 'view', { class: 'foam.u2.ClassView' } ]
@@ -2180,6 +2323,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'ReferenceViewRefinement',
   refines: 'foam.core.Reference',
   properties: [
     {
@@ -2193,6 +2338,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'EnumViewRefinement',
   refines: 'foam.core.Enum',
   properties: [
     [ 'view',          { class: 'foam.u2.EnumView' } ],
@@ -2245,9 +2392,14 @@ foam.CLASS({
   `,
 
   exports: [ 'data' ],
-  imports: [ 'controllerMode?' ],
 
   properties: [
+    {
+      class: 'Enum',
+      of: 'foam.u2.ControllerMode',
+      name: 'controllerMode',
+      factory: function() { return this.__context__.controllerMode || foam.u2.ControllerMode.CREATE; }
+    },
     {
       name: 'data',
       attribute: true
@@ -2267,10 +2419,12 @@ foam.CLASS({
       attribute: true,
       postSet: function(_, mode) { this.updateMode_(mode); },
       expression: function(visibility, controllerMode) {
-        controllerMode = controllerMode || foam.u2.ControllerMode.CREATE;
-
         if ( visibility === foam.u2.Visibility.RO ) {
           return foam.u2.DisplayMode.RO;
+        }
+
+        if ( visibility === foam.u2.Visibility.DISABLED ) {
+          return foam.u2.DisplayMode.DISABLED;
         }
 
         if ( visibility === foam.u2.Visibility.FINAL &&
@@ -2320,6 +2474,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'ActionViewRefinement',
   refines: 'foam.core.Action',
 
   requires: [
@@ -2371,6 +2527,8 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.u2',
+  name: 'ModelU2Refinements',
   refines: 'foam.core.Model',
 
   properties: [

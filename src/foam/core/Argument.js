@@ -23,66 +23,84 @@ foam.CLASS({
 
   properties: [
     {
+      /** The name of the argument */
       name: 'name'
     },
     {
-      name: 'of'
+      class: 'TypeProperty',
+      name: 'type'
     },
     {
-      class: 'Boolean',
-      name: 'nullable',
-      value: false
+      name: 'of',
+      postSet: function(_, of) {
+        console.warn("Deprecated usaged of Argument.of", this.name, of);
+        this.type = of;
+      }
     },
     {
       class: 'Boolean',
       name: 'optional',
       value: false
-    }
-  ],
-  methods: [
-    function check(value) {
-      // Don't check if we have no type information.
-      if ( foam.Undefined.isInstance(this.of) ) return true;
-
-      var of = this.of;
-
-      // TODO: Better support for lazy adapts
-      if ( foam.String.isInstance(of) ) {
-        var of = foam.lookup(this.of, true);
-
-        // TODO: Should foam.lookup() find the flyweight classes like foam.Array foam.String ?
-        if ( ! of ) {
-          of = foam[this.of.substring(this.of.indexOf('.') + 1)]
-        }
-      }
-
-      if ( this.nullable && foam.Null.isInstance(value) ) return true;
-      if ( this.optional && foam.Undefined.isInstance(value) ) return true;
-
-      foam.assert(
-        of.isInstance(value),
-        'Type mismatch', value, 'is not instance of', of);
-
-      return true;
+    },
+    {
+      class: 'String',
+      name: 'documentation',
+      value: ''
     }
   ]
 });
 
 foam.CLASS({
-  refines: 'foam.core.Method',
+  package: 'foam.core',
+  name: 'MethodArgumentRefine',
+  refines: 'foam.core.AbstractMethod',
   properties: [
     {
       class: 'FObjectArray',
       of: 'foam.core.Argument',
       name: 'args',
       adaptArrayElement: function(e, obj) {
+        var ctx = obj.__subContext__ || foam;
         var of = e.class || this.of;
-        var cls = (obj.__subContext__ || foam).lookup(of);
+        var cls = ctx.lookup(of);
 
         return cls.isInstance(e) ? e :
           foam.String.isInstance(e) ? cls.create({ name: e }) :
           cls.create(e, obj);
       }
     }
+  ]
+});
+
+foam.CLASS({
+  refines: 'foam.core.AbstractMethod',
+  package: 'foam.core',
+  name: 'CreateChildRefines',
+  documentation: `
+    Overwrites the createChildMethod_ to merge in details from the parent method
+    into the child method like return types, arguments, and any other method
+    properties. This allows a model to not need to list these details when
+    implementing an interface or overriding a parent's method.
+  `,
+  methods: [
+    function createChildMethod_(child) {
+      var result = child.clone();
+      var props = child.cls_.getAxiomsByClass(foam.core.Property);
+      for ( var i = 0 ; i < props.length ; i++ ) {
+        var prop = props[i];
+        if ( this.hasOwnProperty(prop.name) && ! child.hasOwnProperty(prop.name) ) {
+          prop.set(result, prop.get(this));
+        }
+      }
+
+      // Special merging behaviour for args.
+      var i = 0;
+      var resultArgs = [];
+      for ( ; i < this.args.length ; i++ ) resultArgs.push(this.args[i].clone().copyFrom(child.args[i]));
+      for ( ; i < child.args.length ; i++ ) resultArgs.push(child.args[i]);
+      result.args = resultArgs; // To trigger the adaptArrayElement
+
+      return result;
+    },
   ]
 });

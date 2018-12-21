@@ -6,19 +6,15 @@
 
 package foam.nanos.logger;
 
-import foam.nanos.logger.FileLogger;
-import foam.nanos.logger.StdoutLogger;
-import foam.nanos.logger.Logger;
 import foam.nanos.NanoService;
+
 import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.*;
-import java.io.IOException;
 
 public class CompositeLogger
   implements Logger, NanoService
 {
-  public void start() {
+  public void start() throws Exception {
     for (Logger logger : childLoggers) {
       if ( logger instanceof NanoService ) {
         ((NanoService) logger).start();
@@ -40,30 +36,44 @@ public class CompositeLogger
   public void log(Object... args) {
     for ( Logger logger : childLoggers ) {
       logger.log(args);
-    };
+    }
   }
 
   public void info(Object... args) {
     for ( Logger logger : childLoggers ) {
       logger.info(args);
-    };
+    }
   }
 
   public void warning(Object... args) {
     for ( Logger logger : childLoggers ) {
       logger.warning(args);
-    };
+    }
   }
 
   public void error(Object... args) {
     for ( Logger logger : childLoggers ) {
       logger.error(args);
-    };
+    }
   }
 
   public void debug(Object...  args) {
     for ( Logger logger : childLoggers ) {
       logger.debug(args);
-    };
+    }
+  }
+
+  public String toString() {
+    StringBuilder sb = new StringBuilder("CompositeLogger(");
+
+    for ( Logger logger : childLoggers ) {
+      sb.append(logger);
+      sb.append(",");
+    }
+
+    // remove trailing ,
+    sb.setLength(sb.length()-1);
+
+    return sb.append(")").toString();
   }
 }

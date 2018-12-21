@@ -19,6 +19,10 @@ foam.CLASS({
   package: 'foam.core',
   name: 'Slot', // ???: Rename AbstractSlot or make an Interface
 
+  requires: [
+    'foam.core.internal.SubSlot'
+  ],
+
   documentation: `
     Slots are observable values which can change over time.
 
@@ -60,13 +64,7 @@ foam.CLASS({
       along the chain changes.
     */
     function dot(name) {
-      if ( name == '' ) {
-        return foam.core.internal.WildcardSlot.create({
-          parent: this
-        });
-      }
-
-      return foam.core.internal.SubSlot.create({
+      return this.SubSlot.create({
         parent: this,
         name:   name
       });
@@ -328,66 +326,13 @@ foam.CLASS({
       // because a new class will have different sub-slots.
       if ( ( ! this.of  ) && o ) this.of = o.cls_;
 
-      this.prevSub = o && o.slot(this.name).sub(this.valueChange);
+      this.prevSub = o && o.slot && o.slot(this.name).sub(this.valueChange);
       this.valueChange();
     },
 
     function valueChange() {
       var parentValue = this.parent.get();
       this.value = parentValue ? parentValue[this.name] : undefined;
-    }
-  ]
-});
-
-foam.CLASS({
-  package: 'foam.core.internal',
-  name: 'WildcardSlot',
-  extends: 'foam.core.Slot',
-
-  documentation: 'Like a subslot, but for all properties, triggers when anything on the parent object changes.',
-
-  properties: [
-    'parent',
-    'prevSub'
-  ],
-
-  methods: [
-    function init() {
-      this.parent.sub(this.parentChange);
-      this.parentChange();
-    },
-
-    function get() { return this.parent.get(); },
-
-    function set(value) {
-      throw new Error('Cannnnot assign a wildcard slot.');
-    },
-
-    // function getPrev() { return this.oldValue; },
-    // function setPrev(value) { return this.oldValue = value; },
-
-    function sub(l) {
-      return arguments.length == 1 ?
-        this.SUPER('propertyChange', 'value', l) :
-        this.SUPER.apply(this, arguments);
-    },
-
-    function toString() {
-      return 'WildcardSlot(' + this.obj.cls_.id + ')';
-    }
-  ],
-  listeners: [
-    function parentChange(s) {
-      this.prevSub && this.prevSub.detach();
-
-      var o = this.parent.get();
-
-      this.prevSub = o && o.sub('propertyChange', this.valueChange);
-
-      this.valueChange();
-    },
-    function valueChange() {
-      this.pub('propertyChange', 'value', this);
     }
   ]
 });
@@ -461,38 +406,19 @@ foam.CLASS({
   `,
 
   properties: [
-    {
-      name: 'obj',
-      postSet: function(_, obj) {
-        // Technically the cleanup step is optional.  However if we
-        // don't cleanup then we could still be subscribed to the
-        // slots of the previous obj.  Those subscriptions will
-        // eventually be cleaned up if the expression is ever
-        // triggered, but if the expression never does trigger then
-        // they could be a memory leak.  So we might as well cleanup.
-
-        // Cleanup must happen first.  It's possible that invalidate()
-        // triggers listeners on this slot which will synchronously
-        // read the value.  This will result in the argument
-        // subscription being updated to the new object.  If we
-        // cleanup after this step then we'll be broken because we're
-        // not listening for any of the arguments to update.
-        this.cleanup();
-        this.invalidate();
-      }
-    },
+    'obj',
     'code',
     {
       name: 'args',
       expression: function(obj) {
         foam.assert(obj, 'ExpressionSlot: "obj" or "args" required.');
 
-
         var args = foam.Function.argNames(this.code);
         for ( var i = 0 ; i < args.length ; i++ ) {
           args[i] = obj.slot(args[i]);
         }
 
+        // this.invalidate(); // ???: Is this needed?
         this.subToArgs_(args);
 
         return args;
@@ -546,19 +472,34 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.core',
-  name: 'ValueSlot',
+  name: 'PromiseSlot',
+  implements: [ 'foam.core.Slot' ],
+  documentation: `
+    A slot that takes a promise and sets its value to its value when it
+    resolves.
+  `,
   properties: [
-    'value'
+    {
+      name: 'promise',
+      postSet: function(_, n) {
+        n.then(function(v) {
+          if ( n === this.promise ) this.value = v;
+        }.bind(this));
+      },
+    },
+    {
+      name: 'value',
+    },
   ],
   methods: [
+    function get() { return this.value; },
+    function set() {
+      throw new Error('PromiseSlot does not support setting.');
+    },
     function sub(l) {
       return arguments.length === 1 ?
         this.SUPER('propertyChange', 'value', l) :
-        this.SUPER.apply(this, arguments);
+        this.SUPER.apply(this,arguments);
     },
-
-    function get() { return this.value; },
-
-    function set(v) { this.value = v; }
   ]
 });

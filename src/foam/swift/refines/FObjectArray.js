@@ -5,12 +5,15 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'FObjectArraySwiftRefinement',
   refines: 'foam.core.FObjectArray',
+  flags: ['swift'],
   properties: [
     {
       name: 'swiftType',
       expression: function(of) {
-        return '[' + (of ? foam.lookup(of).model_.swiftName : 'FObject') + ']'
+        return `[${foam.lookup(of).model_.swiftName}]`
       },
     },
     {

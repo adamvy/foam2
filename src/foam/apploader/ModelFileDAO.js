@@ -1,3 +1,9 @@
+/**
+ * @license
+ * Copyright 2018 The FOAM Authors. All Rights Reserved.
+ * http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 foam.CLASS({
   package: 'foam.apploader',
   name: 'ModelFileDAO',
@@ -8,10 +14,6 @@ foam.CLASS({
       class: 'Map',
       name: 'cache'
     },
-    {
-      class: 'StringArray',
-      name: 'flags'
-    },
     'fetcher',
   ],
   methods: [
@@ -19,95 +21,91 @@ foam.CLASS({
       name: 'find_',
       code: function(x, id) {
         var promise;
-        var self = this;
-
         if ( this.cache[id] ) {
           promise = Promise.resolve(this.cache[id]);
         } else {
-          promise = this.fetcher.getFile(id).then(function(text) {
-            if ( ! text ) return null;
-
-            var json;
-
-            var context = {
-              foam: Object.create(foam)
-            };
-
-            context.foam.GENMODEL = function(m) {
-              json = m;
-              json.__genmodel__ = true;
-            };
-
-            context.foam.CLASS = function(m) {
-              var jsonId = m.package ?
-                  m.package + '.' + m.name :
-                  m.name;
-
-              if ( jsonId !== id ) {
-                self.cache[jsonId] = m;
-                return;
-              }
-
-              json = m;
-            };
-
-            context.foam.INTERFACE = function(json) {
-              json.class = json.class || 'foam.core.InterfaceModel',
-              context.foam.CLASS(json);
-            };
-
-            context.foam.ENUM = function(json) {
-              json.class = json.class || 'foam.core.EnumModel';
-              context.foam.CLASS(json);
-            };
-
-            context.foam.RELATIONSHIP = function(r) {
-              console.log("Latching", r.sourceModel, r.targetModel);
-              console.log("Found while loading", id);
-
-              var references = foam.json.references(x, r);
-
-              var sem = 2;
-              function trigger() {
-                sem--;
-                if ( sem == 0 ) {
-                  var obj = foam.dao.Relationship.create(r, x);
-
-                  obj.validate && obj.validate();
-                  foam.package.registerClass(obj);
-                }
-              }
-
-              foam.package.waitForClass(trigger, r.sourceModel);
-              foam.package.waitForClass(trigger, r.targetModel);
-            };
-
-            with ( context ) { eval(text + '\n//# sourceURL=' + id); }
-
-            if ( ! json ) {
-              throw new Error('No model found for ' + id);
-            }
-
-            return json;
-          });
+          promise = this.fetcher.getFile(id);
         }
 
-        return promise.then(function(json) {
-          if ( ! json ) return null;
+        var self = this;
 
-          var references = foam.json.references(x, json);
+        return promise.then(function(text) {
+          if ( ! text ) return null;
+          var json;
+          var jsonId;
 
-          if ( json.__genmodel__ ) {
-            references = references.concat(json.requires.map(x.classloader.load.bind(x.classloader)));
-          }
+          var context = {
+            foam: Object.create(foam)
+          };
 
-          return Promise.all(references).then(function() {
-            if ( json.__genmodel__ ) {
-              return json.build(x);
+          context.foam.CLASS = function(m) {
+            jsonId = m.package ?
+                m.package + '.' + m.name :
+                m.name;
+
+            if ( jsonId !== id ) {
+              self.cache[jsonId] = m;
+              return;
             }
 
+            json = m;
+          };
+
+          context.foam.INTERFACE = function(json) {
+            json.class = json.class || 'foam.core.InterfaceModel',
+            context.foam.CLASS(json);
+          };
+
+          context.foam.ENUM = function(json) {
+            json.class = json.class || 'foam.core.EnumModel';
+            context.foam.CLASS(json);
+          };
+
+          context.foam.SCRIPT = function(json) {
+            json.class = json.class || 'foam.core.Script';
+            context.foam.CLASS(json);
+          };
+
+          context.foam.RELATIONSHIP = function(r) {
+            var s = r.sourceModel;
+            var si = s.lastIndexOf('.');
+            var t = r.targetModel;
+            var ti = t.lastIndexOf('.');
+
+            r.class = r.class || 'foam.dao.Relationship';
+            r.package = r.package || s.substring(0, si)
+            r.name = r.name || s.substring(si+1) + t.substring(ti+1) + 'Relationship';
+            context.foam.CLASS(r);
+            if ( jsonId !== id ) {
+              // If a relationship was encountered but not asked for, initialize
+              // the relationship because it is likely to be expected.
+              // If this behavior isn't desired then the relationship should be
+              // moved into its own file.
+              self.find(jsonId).then(function(m) {
+                m.initRelationship();
+              });
+            }
+          };
+
+          if ( foam.String.isInstance(text) ) {
+            try {
+              with ( context ) { eval(text); }
+            } catch ( e ) {
+              throw new Error("Error parsing " + id + " error was:" + e);
+            }
+          } else {
+            context.foam.CLASS(text);
+          }
+
+          if ( ! json ) {
+            throw new Error('No model found for ' + id);
+          }
+
+          return Promise.all(foam.json.references(x, json)).then(function() {
             return foam.lookup(json.class || 'Model').create(json, x);
           });
+        }, function() {
+          return null;
         });
       }
     }

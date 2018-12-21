@@ -5,13 +5,17 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'InnerClassSwiftRefinement',
   refines: 'foam.core.InnerClass',
+  flags: ['swift'],
   requires: [
     'foam.swift.Method',
     'foam.swift.Argument',
   ],
   methods: [
-    function writeToSwiftClass(cls) {
+    function writeToSwiftClass(cls, parentCls) {
+      if ( ! parentCls.hasOwnAxiom(this.name) ) return;
       if ( !this.model.generateSwift ) return;
       var innerClass = this.model.buildClass();
       var innerSwiftClass = innerClass.toSwiftClass();
@@ -22,7 +26,7 @@ foam.CLASS({
         name: this.model.swiftName + '_create',
         returnType: this.model.swiftName,
         visibility: 'public',
-	body: this.swiftInitializer(),
+        body: this.swiftInitializer(),
         args: [
           this.Argument.create({
             localName: 'args',

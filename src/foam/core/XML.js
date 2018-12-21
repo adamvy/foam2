@@ -5,6 +5,8 @@ http://www.apache.org/licenses/LICENSE-2.0
 */
 
 foam.CLASS({
+  package: 'foam.core',
+  name: 'PropertyXMLRefinement',
   refines: 'foam.core.Property',
 
   properties: [
@@ -39,6 +41,8 @@ foam.CLASS({
 
 /** Add toXML() method to FObject. **/
 foam.CLASS({
+  package: 'foam.core',
+  name: 'FObjectXMLStringify',
   refines: 'foam.core.FObject',
 
   methods: [
@@ -47,7 +51,7 @@ foam.CLASS({
       Use for debugging/testing purposes. If you want actual
       XML output, use foam.xml.* instead.
     */
-    function stringify() {
+    function toXML() {
       return foam.xml.Pretty.stringify(this);
     }
   ]
@@ -254,16 +258,16 @@ foam.CLASS({
           }
         },
         FObject: function(v, p) {
-          if ( v.xmlValue ) {
-            // if v.xmlValue exists then we have attributes
+          if ( v.text ) {
+            // if v.text exists then we have attributes
             // check if the value is an FObject and structure XML accordingly
-            if ( foam.core.FObject.isInstance(v.xmlValue) ) {
+            if ( foam.core.FObject.isInstance(v.text) ) {
               this.start('<' + this.propertyName(p) + this.outputAttributes(v) + '>');
               this.output(p.toXML(v, this));
               this.end('</' +  this.propertyName(p) + '>');
             } else {
               this.out('<').outputPropertyName(p).outputAttributes(v).out('>');
-              this.out(p.toXML(v.xmlValue, this));
+              this.out(p.toXML(v.text, this));
               this.out('</').outputPropertyName(p).out('>');
             }
           } else {
@@ -410,9 +414,9 @@ foam.CLASS({
         }
       }
 
-      // check to see if xmlValue property exists
-      var xmlValueProp = obj.cls_.getAxiomByName('xmlValue');
-      if ( xmlValueProp ) {
+      // check to see if text property exists
+      var textProp = obj.cls_.getAxiomByName('text');
+      if ( textProp ) {
         // parse attributes if they exist
         var attributes = doc.attributes;
         for ( var i = 0 ; i < attributes.length ; i++ ) {
@@ -422,10 +426,10 @@ foam.CLASS({
           prop.set(obj, attribute.value);
         }
 
-        if ( foam.core.FObjectProperty.isInstance(xmlValueProp) ) {
-          xmlValueProp.set(obj, this.objectify(doc, xmlValueProp.of));
+        if ( foam.core.FObjectProperty.isInstance(textProp) ) {
+          textProp.set(obj, this.objectify(doc, textProp.of));
         } else {
-          xmlValueProp.set(obj, doc.firstChild ? doc.firstChild.nodeValue : null);
+          textProp.set(obj, doc.firstChild ? doc.firstChild.nodeValue : null);
         }
       }
 

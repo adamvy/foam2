@@ -58,17 +58,22 @@ public class GoogleMapsGeocodingDAO
     ((FixedThreadPool) x.get("threadPool")).submit(x, new ContextAgent() {
       @Override
       public void execute(X x) {
+        if ( result == null ) {
+          return;
+        }
+
         // don't geocode if no address property
-        Address address = (Address) prop_.get(result);
+        FObject cloned = result.fclone();
+        Address address = (Address) prop_.get(cloned);
         if ( address == null ) {
           return;
         }
 
         // check if address updated
         if ( address.getLatitude() != 0 && address.getLongitude() != 0 ) {
-          FObject stored = getDelegate().find(result.getProperty("id"));
-          if (stored != null && prop_.get(result) != null ) {
-            Address storedAddress = (Address) prop_.get(result);
+          FObject stored = getDelegate().find(cloned.getProperty("id"));
+          if (stored != null && prop_.get(cloned) != null ) {
+            Address storedAddress = (Address) prop_.get(cloned);
             // compare fields that are used to populate Google maps query
             if ( SafetyUtil.compare(address.getAddress(), storedAddress.getAddress()) == 0 &&
                 SafetyUtil.compare(address.getCity(), storedAddress.getCity()) == 0 &&
@@ -154,8 +159,8 @@ public class GoogleMapsGeocodingDAO
           // set latitude and longitude
           address.setLatitude(coords.getLat());
           address.setLongitude(coords.getLng());
-          prop_.set(result, address);
-          GoogleMapsGeocodingDAO.super.put_(x, result);
+          prop_.set(cloned, address);
+          GoogleMapsGeocodingDAO.super.put_(x, cloned);
         } catch (Throwable ignored) {
         } finally {
           IOUtils.closeQuietly(reader);

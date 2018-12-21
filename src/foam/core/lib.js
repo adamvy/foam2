@@ -25,28 +25,33 @@ foam = {
     /* Return a unique id. */
     var id = 1;
     return function next$UID() { return id++; };
-  })()
+  })(),
+  SCRIPT: function(m) {
+    m.class = '__Script__';
+
+    // An instance of the script isn't useful at this point so just
+    // execute the code. foam.SCRIPT can be overwritten later to
+    // capture the details of the script if need be.
+
+    // Only execute if the script's flags match the curren runtime flags.
+    if ( m.flags &&
+         global.FOAM_FLAGS ) {
+      for ( var i = 0 ; i < m.flags.length ; i++ ) {
+        if ( global.FOAM_FLAGS[m.flags[i]] ) {
+          m.code();
+          return;
+        }
+      }
+      return;
+    }
+
+    m.code();
+  }
 };
 
 
 /** Setup nodejs-like 'global' on web */
 if ( ! foam.isServer ) global = window;
-
-global.SUPPRESSED_WARNINGS = global.SUPPRESSED_WARNINGS || {};
-global.suppressWarnings = function (a) {
-
-  a.forEach(function(key) {
-    SUPPRESSED_WARNINGS[key] = true;
-  })
-}
-
-suppressWarnings([ `Skipping constant PARSE_JSON with unknown type.`,
-  `Property foam.core.FObjectProperty.of "value" hidden by "getter"`,
-  `Unknown property foam.nanos.menu.DAOMenu.XXXsummaryView: [object Object]`,
-  `Import "scriptDAO" already exists in ancestor class of foam.nanos.test.Test.`,
-  `Unknown property foam.core.Model.javaType: foam.core.PropertyInfo`,
-  `Property foam.dao.index.Index.nodeClass "factory" hidden by "getter"`
-]);
 
 Object.defineProperty(
   Object.prototype,
@@ -79,7 +84,7 @@ Object.defineProperty(
 foam.assert = function assert(cond) {
   if ( ! cond ) {
     throw new Error(Array.from(arguments).slice(1).join(' '));
-//    console.assert(false, Array.from(arguments).slice(1).join(' '));
+    console.assert(false, Array.from(arguments).slice(1).join(' '));
 
   }
 
@@ -116,10 +121,6 @@ foam.LIB = function LIB(model) {
     root = root[path[i]] || ( root[path[i]] = {} );
   }
 
-  // During boot, keep a list of created LIBs
-  if ( global.foam.__LIBS__ ) global.foam.__LIBS__[model.name] = root;
-  if ( global.foam.__LIBS2__ ) global.foam.__LIBS2__.push(model);
-
   if ( model.constants ) {
     foam.assert(
       typeof model.constants === 'object',
@@ -149,5 +150,3 @@ foam.LIB = function LIB(model) {
     }
   }
 };
-global.foam.__LIBS__ = {};
-global.foam.__LIBS2__ = [];

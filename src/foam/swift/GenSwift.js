@@ -27,6 +27,7 @@ foam.CLASS({
     {
       name: 'coreModels',
       value: [
+        'foam.core.Detachable',
         'foam.core.EventProxy',
         'foam.mlang.order.Comparator',
         'foam.mlang.predicate.Predicate',
@@ -52,6 +53,7 @@ foam.CLASS({
         'foam.swift.parse.json.PropertyParser',
         'foam.swift.parse.json.UnknownPropertyParser',
         'foam.swift.parse.json.output.Outputter',
+        'foam.json2.PrettyOutputterOutput',
         'foam.swift.parse.parser.Alt',
         'foam.swift.parse.parser.AnyChar',
         'foam.swift.parse.parser.Chars',
@@ -73,9 +75,12 @@ foam.CLASS({
       value: [
         'FObject',
         'foam.core.AbstractInterface',
-        'foam.core.AbstractEnum',
-        'foam.box.RPCReturnBox',
         'foam.swift.ui.AbstractGenIBOutletDetailView',
+        'foam.core.Property',
+        'foam.dao.index.TreeIndex',
+        'foam.swift.SwiftClass',
+        'foam.swift.Method',
+        'foam.swift.Field',
       ],
     },
     {
@@ -127,7 +132,7 @@ foam.CLASS({
 
         var classes = [];
         for (var i = 0; i < models.length; i++) {
-          var cls = self.lookup(models[i], self);
+          var cls = self.__context__.lookup(models[i], self);
           var swiftClass = cls.toSwiftClass();
           if (swiftClass.getMethod && swiftClass.getMethod('classInfo')) {
             classes.push(swiftClass.name);

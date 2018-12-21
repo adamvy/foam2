@@ -8,7 +8,6 @@ foam.CLASS({
   package: 'foam.nanos.auth',
   name: 'SignInView',
   extends: 'foam.u2.View',
-  flags: [ 'web' ],
 
   documentation: 'Sign In View',
 
@@ -28,81 +27,86 @@ foam.CLASS({
 
   requires: [
     'foam.comics.DAOCreateControllerView',
+    'foam.nanos.auth.resetPassword.EmailView',
     'foam.nanos.auth.User',
-    'foam.u2.dialog.NotificationMessage',
-    'foam.nanos.auth.resetPassword.EmailView'
+    'foam.u2.dialog.NotificationMessage'
   ],
 
-  axioms: [
-    foam.u2.CSS.create({
-      code: function CSS() {/*
-      ^{
-        width: 490px;
-        margin: auto;
-      }
-      ^ .sign-in-container{
-        padding-top: 20px;
-        width: 490px;
-        height: 230px;
-        border-radius: 2px;
-        background-color: #ffffff;
-      }
-      ^ p{
-        display: inline-block;
-      }
-      ^ .full-width-button{
-        width: 90%;
-        height: 40px;
-        border-radius: 2px;
-        border: solid 1px #59a5d5;
-        margin: 0 auto;
-        background-color: #59aadd;
-        text-align: center;
-        line-height: 40px;
-        cursor: pointer;
-        color: #ffffff;
-        margin-top: 10px;
-      }
-      ^ .full-width-input{
-        width: 90%;
-        height: 40px;
-        margin-left: 5%;
-        margin-bottom: 15px;
-        outline: none;
-        padding: 10px;
-      }
-      ^ .label{
-        height: 16px;
-        font-family: Roboto;
-        font-size: 14px;
-        font-weight: 300;
-        text-align: left;
-        color: #093649;
-        margin-bottom: 8px;
-        margin-left: 25px;
-      }
-      ^ .foam-u2-ActionView-signIn{
-        width: 90%;
-        margin-left: 25px;
-      }
-      ^ .foam-u2-ActionView-signIn > span{
-        position: relative;
-        top: -5px;
-      }
-      ^ .link{
-        margin-left: 2px;
-        color: #59a5d5;
-        cursor: pointer;
-      }
-      ^ .forgot-link{
-        margin-left: 2px;
-        color: #59a5d5;
-        cursor: pointer;
-        float: right;
-      }
-    */}
-    })
-  ],
+  css: `
+    ^{
+      width: 490px;
+      margin: auto;
+    }
+    ^ .sign-in-container{
+      padding-top: 20px;
+      width: 490px;
+      height: 230px;
+      border-radius: 2px;
+      background-color: #ffffff;
+    }
+    ^ p{
+      display: inline-block;
+    }
+    ^ .full-width-button{
+      width: 90%;
+      height: 40px;
+      border-radius: 2px;
+      border: solid 1px #59a5d5;
+      margin: 0 auto;
+      background-color: #59aadd;
+      text-align: center;
+      line-height: 40px;
+      cursor: pointer;
+      color: #ffffff;
+      margin-top: 10px;
+    }
+    ^ .full-width-input{
+      width: 90%;
+      height: 40px;
+      margin-left: 5%;
+      margin-bottom: 15px;
+      outline: none;
+      padding: 10px;
+    }
+    ^ .full-width-input-password {
+      /* Required for password input field */
+      width: 90%;
+      height: 40px;
+      margin-left: 5%;
+      margin-bottom: 15px;
+      outline: none;
+      padding: 10px;
+    }
+    ^ .label{
+      height: 16px;
+      font-family: Roboto;
+      font-size: 14px;
+      font-weight: 300;
+      text-align: left;
+      color: #093649;
+      margin-bottom: 8px;
+      margin-left: 25px;
+    }
+    ^ .foam-u2-ActionView-signIn{
+      width: 90%;
+      margin-left: 25px;
+    }
+    ^ .foam-u2-ActionView-signIn > span{
+      position: relative;
+      top: -5px;
+    }
+    ^ .link{
+      margin-left: 2px;
+      color: #59a5d5;
+      cursor: pointer;
+    }
+    ^ .forgot-link{
+      margin-left: 2px;
+      color: #59a5d5;
+      cursor: pointer;
+      float: right;
+    }
+  `,
 
   properties: [
     {
@@ -123,25 +127,27 @@ foam.CLASS({
 
       this.addClass(this.myClass())
       .start()
-        .start('h1').add("Sign In").end()
+        .start('h1').add('Sign In').end()
         .start('form').addClass('sign-in-container')
-          .start().addClass('label').add("Email Address").end()
+          .start().addClass('label').add('Email Address').end()
           .start(this.EMAIL).addClass('full-width-input').end()
-          .start().addClass('label').add("Password").end()
-          .start(this.PASSWORD).addClass('full-width-input').end()
+          .start().addClass('label').add('Password').end()
+          .add(this.PASSWORD)
           .start(this.SIGN_IN).addClass('full-width-button').end()
         .end()
         .start('div')
-          .callIf(this.signUpEnabled, function(){
-            this.start('p').add("Don't have an account?").end()
+          .callIf(this.signUpEnabled, function() {
+            this.start('p').add('Don\'t have an account?').end()
             .start('p').style({ 'margin-left': '2px' }).addClass('link')
-              .add("Sign up.")
+              .add('Sign up.')
               .on('click', self.signUp)
-            .end()
+            .end();
           })
           .start('p').style({ 'margin-left': '150px' }).addClass('forgot-link')
-            .add("Forgot Password?")
-            .on('click', function(){ self.stack.push({ class: 'foam.nanos.auth.resetPassword.EmailView' })})
+            .add('Forgot Password?')
+            .on('click', function() {
+              self.stack.push({ class: 'foam.nanos.auth.resetPassword.EmailView' })
+            })
           .end()
         .end()
       .end();
@@ -183,12 +189,18 @@ foam.CLASS({
           return;
         }
 
-        this.auth.loginByEmail(null, this.email, this.password).then(function(user){
-          self.loginSuccess = user ? true : false;
-          self.user.copyFrom(user);
-          self.add(self.NotificationMessage.create({ message: 'Login Successful.' }));
+        this.auth.loginByEmail(null, this.email, this.password).then(function(user) {
+          if ( user && user.twoFactorEnabled ) {
+            self.loginSuccess = false;
+            self.user.copyFrom(user);
+            self.stack.push({ class: 'foam.nanos.auth.twofactor.TwoFactorSignInView' });
+          } else {
+            self.loginSuccess = user ? true : false;
+            self.user.copyFrom(user);
+            self.add(self.NotificationMessage.create({ message: 'Login Successful.' }));
+          }
         }).catch(function(a) {
-          self.add(self.NotificationMessage.create({ message: a.message + '. Please try again.', type: 'error' }));
+          self.add(self.NotificationMessage.create({ message: a.message, type: 'error' }));
         });
       }
     }

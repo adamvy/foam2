@@ -120,16 +120,32 @@ foam.LIB({
 
       (Model is 'this').
     */
-    function buildClass() {
-      var context = this.__context__ || foam.__context__;
+    function buildClass(x) {
+      var context = x || this.__context__ || foam.__context__;
       var cls;
 
       if ( this.refines ) {
+        // TODO This should probably live elsewhere.
+        if ( this.flags &&
+             global.FOAM_FLAGS ) {
+          var flagged = false;
+          for ( var i = 0 ; i < this.flags.length ; i++ ) {
+            if ( global.FOAM_FLAGS[this.flags[i]] ) {
+              flagged = true;
+              break;
+            }
+          }
+
+          if ( ! flagged ) {
+            return context.lookup(this.refines);
+          }
+        }
+
         cls = context.lookup(this.refines);
-        foam.assert(cls, 'Unknown refinement class: ' + this.refines);
+        foam.assert(cls, 'Unknown refinement class: ' + this.refines + ' in: ' + this.id);
       } else {
-        foam.assert(this.id, 'Missing id name.', this.name);
-        foam.assert(this.name, 'Missing class name.');
+        foam.assert(this.name, 'Missing class name.', this);
+        foam.assert(this.id, 'Missing class id: ', this.name);
 
         var parent = this.extends      ?
           context.lookup(this.extends) :
@@ -170,6 +186,8 @@ foam.LIB({
 
       // Will be replaced in phase2.
       foam.CLASS = function(m) {
+        m.class = m.class || 'foam.core.Model';
+
         m.id = m.package + '.' + m.name;
         var cls = buildClass.call(m);
 
@@ -179,15 +197,15 @@ foam.LIB({
 
         foam.register(cls);
 
-        // Register the class in the global package path.
-        foam.package.registerClass(cls);
-
         return cls;
       };
     },
 
     /** Start second phase of bootstrap process. */
     function phase2() {
+      // Add a pubsub to foam for class definitions
+      foam.pubsub = foam.core.FObject.create();
+
       // Upgrade to final CLASS() definition.
       /* Creates a Foam class from a plain-old-object definition:
           (1) Determine the class of model for the new class's model;
@@ -198,6 +216,7 @@ foam.LIB({
       foam.CLASS = function(m, skipRegistration) {
         var cls   = m.class ? foam.lookup(m.class) : foam.core.Model;
         var model = cls.create(m);
+
         model.validate();
         // cls was: class-for-model-construction;
         // cls is: class-constructed-from-model.
@@ -209,18 +228,8 @@ foam.LIB({
         if ( ! m.refines ) {
           // Register class in global context.
           foam.register(cls);
-
-          // Register the class in the global package path.
-          foam.package.registerClass(cls);
-        } else if ( m.name ) {
-          // Register refinement id in global context.
-          foam.register(cls, ( m.package || 'foam.core' ) + '.' + m.name);
+          foam.pubsub.pub("defineClass", cls.id, cls);
         }
-        // TODO(markdittmer): Identify and name anonymous refinements with:
-        // else {
-        //   console.warn('Refinement without unique id', cls);
-        //   debugger;
-        // }
 
         return cls;
       };
@@ -256,8 +265,6 @@ foam.LIB({
       }
 
       delete foam.boot;
-
-      console.log('core boot time: ', Date.now() - this.startTime);
     }
   ]
 });

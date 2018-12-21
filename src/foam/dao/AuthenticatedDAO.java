@@ -7,18 +7,18 @@
 package foam.dao;
 
 import foam.core.FObject;
+import foam.core.InvalidX;
 import foam.core.X;
 import foam.mlang.order.Comparator;
 import foam.mlang.predicate.Predicate;
-import foam.mlang.sink.Count;
 import foam.nanos.auth.AuthService;
-import java.security.Permission;
+import foam.nanos.auth.AuthorizationException;
 
 /** Authenticate access to a DAO. **/
 public class AuthenticatedDAO
   extends ProxyDAO
 {
-  protected String name_;
+  protected String  name_;
   protected boolean authenticateRead_;
 
   public AuthenticatedDAO(String name, DAO delegate) {
@@ -26,8 +26,14 @@ public class AuthenticatedDAO
   }
 
   public AuthenticatedDAO(String name, boolean authenticateRead, DAO delegate) {
-    this.name_ = name;
+    this.name_             = name;
     this.authenticateRead_ = authenticateRead;
+    AuthorizationException exception = new AuthorizationException("When " +
+        "using a DAO decorated by AuthenticatedDAO, you may only call the " +
+        "context-oriented methods: put_(), find_(), select_(), remove_(), " +
+        "removeAll_(), pipe_(), and listen_(). Alternatively, you can also " +
+        "use .inX() to set the context on the DAO.");
+    setX(new InvalidX(exception));
     setDelegate(delegate);
   }
 
@@ -57,7 +63,7 @@ public class AuthenticatedDAO
     }
 
     if ( ! authService.check(x, permission) ) {
-      throw new RuntimeException("Insufficient permissions");
+      throw new AuthorizationException();
     }
 
     return super.put_(x, obj);
@@ -69,7 +75,7 @@ public class AuthenticatedDAO
     AuthService authService = (AuthService) x.get("auth");
 
     if ( ! authService.check(x, permission) ) {
-      throw new RuntimeException("Insufficient permissions");
+      throw new AuthorizationException();
     }
 
     return super.remove_(x, obj);
@@ -82,9 +88,10 @@ public class AuthenticatedDAO
       AuthService authService = (AuthService) x.get("auth");
 
       if ( ! authService.check(x, permission) ) {
-        throw new RuntimeException("Insufficient permissions");
+        throw new AuthorizationException();
       }
     }
+
     return super.find_(x, id);
   }
 
@@ -110,8 +117,8 @@ public class AuthenticatedDAO
   }
 
   @Override
-  public void pipe_(X x, Sink sink) {
+  public void pipe_(foam.core.X x, foam.dao.Sink sink, foam.mlang.predicate.Predicate predicate) {
     sink = new AuthenticatedSink(x, createPermission("pipe"), sink);
-    super.pipe_(x, sink);
+    super.pipe_(x, sink, null);
   }
 }

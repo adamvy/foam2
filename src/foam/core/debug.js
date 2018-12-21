@@ -28,9 +28,17 @@
 
 /* Validating a Model should also validate all of its Axioms. */
 foam.CLASS({
+  package: 'foam.core',
+  name: 'ModelSourceRefinement',
   refines: 'foam.core.Model',
+  flags: ['debug'],
 
-  properties: [ 'source' ],
+  properties: [
+    {
+      name: 'source',
+      transient: true,
+    },
+  ],
 
   methods: [
     function validate() {
@@ -52,7 +60,10 @@ foam.CLASS({
 
 /* Validate that Listeners aren't both framed and merged. */
 foam.CLASS({
+  package: 'foam.core',
+  name: 'ListenerValidateRefinement',
   refines: 'foam.core.Listener',
+  flags: ['debug'],
 
   methods: [
     function validate() {
@@ -67,9 +78,17 @@ foam.CLASS({
 
 /* Validating a Model should also validate all of its Axioms. */
 foam.CLASS({
+  package: 'foam.core',
+  name: 'PropertyValidateRefinement',
   refines: 'foam.core.Property',
+  flags: ['debug'],
 
-  properties: [ 'source' ],
+  properties: [
+    {
+      name: 'source',
+      transient: true,
+    },
+  ],
 
   methods: [
     function validate(model) {
@@ -94,7 +113,7 @@ foam.CLASS({
               }
 
               var source = this.source;
-              this.warn(
+              this.__context__.warn(
                   (source ? source + ' ' : '') +
                   'Property ' + mName +
                   this.name + ' "' + e[j] +
@@ -111,26 +130,31 @@ foam.CLASS({
         var expression = this.expression;
         var pName = cls.id + '.' + this.name + '.expression: ';
 
-        var argNames = foam.Function.argNames(expression).map(function(a) {
+        var argNames = foam.Function.breakdown(expression).args.map(function(a) {
           return a.split('$').shift();
         });
+
         for ( var i = 0 ; i < argNames.length ; i++ ) {
           var name  = argNames[i];
           var axiom = cls.getAxiomByName(name);
 
           foam.assert(
               axiom,
-              'Unknown argument "', name, '" in ', pName, expression);
+              'Unknown argument ', name, ' in ', pName, expression);
           foam.assert(
               axiom.toSlot,
-              'Non-Slot argument "', name, '" in ', pName, expression);
+              'Non-Slot argument ', name, ' in ', pName, expression);
         }
       }
     }
   ]
 });
 
-
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'DebugScript',
+  flags: ['debug'],
+  code: function() {
 foam.assert(
     ! foam.core.FObject.describe,
     'foam.core.FObject.describe already set.');
@@ -198,7 +222,9 @@ foam.core.FObject.installModel = function() {
               ' type from ' +
               prevCls +
               ' to ' +
-              aCls);
+              aCls +
+              ' in model ' +
+              m.id);
         }
       }
 
@@ -253,22 +279,27 @@ if ( false && global.Proxy ) {
     };
   })();
 }
+  }
+});
 
 
 /* Add describe() support to objects. */
 foam.CLASS({
+  package: 'foam.core',
+  name: 'FObjectDescribeRefinement',
   refines: 'foam.core.FObject',
+  flags: ['debug'],
 
   methods: [
     function unknownArg(key, value) {
       if ( key == 'class' ) return;
-      this.warn('Unknown property ' + this.cls_.id + '.' + key + ': ' + value);
+      this.__context__.warn('Unknown property ' + this.cls_.id + '.' + key + ': ' + value);
     },
 
     function describe(opt_name) {
-      this.log('Instance of', this.cls_.name);
-      this.log('Axiom Type           Name           Value');
-      this.log('----------------------------------------------------');
+      this.__context__.log('Instance of', this.cls_.name);
+      this.__context__.log('Axiom Type           Name           Value');
+      this.__context__.log('----------------------------------------------------');
       var ps = this.cls_.getAxiomsByClass(foam.core.Property);
       for ( var i = 0 ; i < ps.length ; i++ ) {
         var p = ps[i];
@@ -288,32 +319,38 @@ foam.CLASS({
           foam.String.pad(p.name, 14),
           value);
       }
-      this.log('\n');
+      this.__context__.log('\n');
     }
   ]
 });
 
-
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'DebugDescribeScript',
+  flags: ['debug'],
+  code: function() {
 /* Add describe support to contexts. */
 foam.__context__ = foam.__context__.createSubContext({
   describe: function() {
-    this.log(
+    this.__context__.log(
         'Context:',
         this.hasOwnProperty('NAME') ? this.NAME : ('anonymous ' + this.$UID));
-    this.log('KEY                  Type           Value');
-    this.log('----------------------------------------------------');
+    this.__context__.log('KEY                  Type           Value');
+    this.__context__.log('----------------------------------------------------');
     for ( var key in this ) {
       var value = this[key];
       var type = foam.core.FObject.isInstance(value) ?
           value.cls_.name :
           typeof value    ;
-      this.log(
+      this.__context__.log(
         foam.String.pad(key,  20),
         foam.String.pad(type, 14),
         typeof value === 'string' || typeof value === 'number' ? value : '');
     }
-    this.log('\n');
+    this.__context__.log('\n');
 }});
+  }
+});
 
 
 foam.CLASS({
@@ -343,84 +380,32 @@ foam.CLASS({
   ]
 });
 
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'DebugContextScript',
+  requires: [
+    'foam.debug.Window',
+  ],
+  flags: ['debug'],
+  code: function() {
 foam.__context__ = foam.debug.Window.create(null, foam.__context__).__subContext__;
+  }
+})
 
-
-
-foam.LIB({
-  name: 'foam.Function',
-
-  methods: [
-    /**
-     * Decorates the given function with a runtime type checker.
-     *
-     * fn should be a raw function.
-     * args parameter should be an array of foam.core.Argument objects.
-     */
-    function typeCheck(fn, ret, args) {
-      // Multiple definitions of LIBs may trigger this multiple times
-      // on the same function
-      if ( fn.isTypeChecked__ ) return fn;
-
-      var f = function() {
-        if ( args.length !== arguments.length ) {
-          console.warn("Function called with", arguments.length, "arguments but we know of", args.length, "arguments.");
-        }
-
-        var len = Math.min(args.length, arguments.length);
-
-        for ( var i = 0 ; i < len ; i++ ) {
-          if ( ! args[i].check ) {
-            // TODO: Remove this once all cases are fixed.
-            console.warn("Argument model has no .check method");
-          } else {
-            args[i].check(arguments[i]);
-          }
-        }
-
-        var retValue = fn.apply(this, arguments);
-
-        if ( ret && ret.check ) {
-          ret.check(retValue);
-        }
-
-        return retValue;
-      };
-
-      f.isTypeChecked__ = true;
-      f.toString = function() { return fn.toString(); };
-
-      return f;
-    }
-  ]
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'DebugImportScript',
+  code: function() {
+    // Access Import now to avoid circular reference because of lazy model building.
+    foam.core.Import;
+  }
 });
 
-// Access Argument now to avoid circular reference because of lazy model building.
-foam.core.Argument;
-
-/* Methods gain type checking. */
 foam.CLASS({
-  refines: 'foam.core.Method',
-
-  properties: [
-    {
-      name: 'code',
-      adapt: function(old, nu) {
-        if ( nu && this.args && this.args.length ) {
-          return foam.Function.typeCheck(nu, this.returns, this.args);
-        }
-        return nu;
-      }
-    }
-
-  ]
-});
-
-// Access Import now to avoid circular reference because of lazy model building.
-foam.core.Import;
-
-foam.CLASS({
+  package: 'foam.core',
+  name: 'FObjectValidateImportsRefinement',
   refines: 'foam.core.FObject',
+  flags: ['debug'],
 
   documentation: 'Assert that all required imports are provided.',
 
@@ -441,7 +426,10 @@ foam.CLASS({
 
 
 foam.CLASS({
+  package: 'foam.core',
+  name: 'ImportValidationRefinement',
   refines: 'foam.core.Import',
+  flags: ['debug'],
 
   properties: [
     {
@@ -461,7 +449,7 @@ foam.CLASS({
     function installInClass(c, superImport) {
       // Produce warning for duplicate imports
       if ( superImport ) {
-        this.warn(
+        this.__context__.warn(
           'Import "' + this.name + '" already exists in ancestor class of ' +
           c.id + '.');
       }
@@ -470,7 +458,10 @@ foam.CLASS({
 });
 
 foam.CLASS({
+  package: 'foam.core',
+  name: 'FObjectDescribeListenersRefinement',
   refines: 'foam.core.FObject',
+  flags: ['debug'],
 
   documentation: '.',
 
@@ -491,7 +482,7 @@ foam.CLASS({
       }
 
       show(this.getPrivate_('listeners'));
-      this.log(count, 'subscriptions');
+      this.__context__.log(count, 'subscriptions');
     }
   ]
 });

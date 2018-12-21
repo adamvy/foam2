@@ -91,6 +91,11 @@ foam.CLASS({
       name: 'name'
     },
     'key',
+    'of',
+    {
+      class: 'TypeProperty',
+      name: 'type'
+    },
     {
       class: 'Boolean',
       name: 'required',
@@ -225,7 +230,12 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Model',
-
+  package: 'foam.core',
+  name: 'ImportExportModelRefine',
+  requires: [
+    'foam.core.Import',
+    'foam.core.Export',
+  ],
   properties: [
     {
       class: 'AxiomArray',

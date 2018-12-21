@@ -20,11 +20,16 @@ public class AnyParser
           new NullParser(),
           new StringParser(),
           new BooleanParser(),
-          new LongParser(),
+          // parse long but fail if decimal is found
+          new Seq1(0,
+            new LongParser(),
+            new Not(new Literal("."))),
           new DoubleParser(),
+          new ObjectDateParser(),
           new StringArrayParser(),
           new StringDoubleArrayParser(),
           new PropertyReferenceParser(),
+          new ClassReferenceParser(),
           new ArrayParser(),
           new FObjectParser(),
           new MapParser());

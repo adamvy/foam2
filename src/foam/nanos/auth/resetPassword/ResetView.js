@@ -22,7 +22,6 @@ foam.CLASS({
   ],
 
   css:`
-
     ^{
       width: 490px;
       margin: auto;
@@ -111,8 +110,26 @@ foam.CLASS({
       outline: none;
       padding: 10px;
     }
+    ^ .full-width-input-password {
+      /* Required for password input field */
+      width: 90%;
+      height: 40px;
+      margin-left: 5%;
+      margin-bottom: 15px;
+      outline: none;
+      padding: 10px;
+    }
   `,
 
+  messages: [
+    { name: 'noSpaces', message: 'Password cannot contain spaces' },
+    { name: 'noNumbers', message: 'Password must have one numeric character' },
+    { name: 'noSpecial', message: 'Password must not contain: !@#$%^&*()_+' },
+    { name: 'emptyPassword', message: 'Please enter your new password' },
+    { name: 'emptyConfirmation', message: 'Please re-enter your new password' },
+    { name: 'invalidLength', message: 'Password must be 7-32 characters long' },
+    { name: 'passwordMismatch', message: 'Passwords do not match' }
+  ],
 
   properties: [
     {
@@ -159,9 +176,9 @@ foam.CLASS({
         .start().addClass('Reset-Password').add("Reset Password").end()
         .start().addClass('Message-Container')
           .start().addClass('newPassword-Text').add("New Password").end()
-          .start(this.NEW_PASSWORD).addClass('full-width-input').end()
+          .add(this.NEW_PASSWORD)
           .start().addClass('confirmPassword-Text').add("Confirm Password").end()
-          .start(this.CONFIRM_PASSWORD).addClass('full-width-input').end()
+          .add(this.CONFIRM_PASSWORD)
           .start('div')
             .start(this.CONFIRM).addClass('resetButton').end()
           .end()
@@ -173,16 +190,6 @@ foam.CLASS({
       .end()
     .end()
     }
-  ],
-
-  messages: [
-    { name: 'noSpaces', message: 'Password cannot contain spaces' },
-    { name: 'noNumbers', message: 'Password must have one numeric character' },
-    { name: 'noSpecial', message: 'Password must not contain: !@#$%^&*()_+' },
-    { name: 'emptyPassword', message: 'Please enter new your password' },
-    { name: 'emptyConfirmation', message: 'Please re-enter your new password' },
-    { name: 'invalidLength', message: 'Password must be 7-32 characters long' },
-    { name: 'passwordMismatch', message: 'Passwords do not match' }
   ],
 
   actions: [
@@ -229,10 +236,10 @@ foam.CLASS({
         }
 
         var user = this.User.create({
-          password: this.newPassword
+          desiredPassword: this.newPassword
         });
 
-        this.resetPasswordToken.processToken(user, this.token).then(function (result) {
+        this.resetPasswordToken.processToken(null, user, this.token).then(function (result) {
           self.stack.push({ class: 'foam.nanos.auth.resetPassword.SuccessView' });
         }).catch(function (err) {
           self.add(self.NotificationMessage.create({ message: err.message, type: 'error' }));

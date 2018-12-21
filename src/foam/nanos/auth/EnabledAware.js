@@ -11,18 +11,14 @@ foam.INTERFACE({
   methods: [
     {
       name: 'getEnabled',
-      returns: 'Boolean',
-      javaReturns: 'boolean',
-      swiftReturns: 'Bool'
+      returns: 'Boolean'
     },
     {
       name: 'setEnabled',
       args: [
         {
-          class: 'Boolean',
           name: 'value',
-          javaType: 'boolean',
-          swiftType: 'Bool'
+          type: 'Boolean'
         }
       ]
     }

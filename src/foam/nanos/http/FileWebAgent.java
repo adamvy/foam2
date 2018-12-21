@@ -14,8 +14,7 @@ import java.io.*;
 import java.util.HashMap;
 
 public class FileWebAgent
-  extends foam.core.ContextAwareSupport
-  implements WebAgent, NSpecAware
+    implements WebAgent, NSpecAware
 {
   protected static final int                     BUFFER_SIZE = 4096;
   protected static final String                  DEFAULT_EXT = "application/octet-stream";
@@ -46,7 +45,7 @@ public class FileWebAgent
   }
 
   public FileWebAgent(String path) {
-    this(path, null);
+    this(path, System.getProperty("user.dir"));
   }
 
   public FileWebAgent(String path, String cwd) {
@@ -56,10 +55,6 @@ public class FileWebAgent
 
   @Override
   public void execute(X x) {
-    if ( cwd_ == null ) {
-      cwd_ = (String)(getX().get("webroot"));
-    }
-
     HttpServletRequest req = x.get(HttpServletRequest.class);
     HttpServletResponse resp = x.get(HttpServletResponse.class);
 
@@ -68,9 +63,9 @@ public class FileWebAgent
 
     try {
       path = req.getRequestURI().replaceFirst("/?service/" + nspec_.getName() + "/?", "") + path_;
-      File src = new File(cwd_, SafetyUtil.isEmpty(path) ? "./" : path);
+      File src = new File(SafetyUtil.isEmpty(path) ? "./" : path);
 
-      boolean pathStartsWithCwd = src.getCanonicalPath().startsWith(cwd_);
+      boolean pathStartsWithCwd = src.getAbsolutePath().startsWith(cwd_);
       if ( ! pathStartsWithCwd ) {
         throw new FileNotFoundException("File not found: " + path);
       }
@@ -116,10 +111,7 @@ public class FileWebAgent
       }
 
       // file not found
-      resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
-      resp.setContentType(EXTS.get("json"));
-      PrintWriter pw = x.get(PrintWriter.class);
-      pw.write("{\"error\": \"File not found\"," + "\"filename\": \"" + StringEscapeUtils.escapeJson(path) + "\"}");
+      throw new FileNotFoundException("File not found: " + path);
     } catch (Throwable t) {
       t.printStackTrace();
       resp.setStatus(HttpServletResponse.SC_NOT_FOUND);

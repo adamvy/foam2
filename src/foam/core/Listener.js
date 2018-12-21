@@ -49,14 +49,25 @@ foam.CLASS({
   name: 'Listener',
   extends: 'foam.core.AbstractMethod',
 
+  requires: [
+    'foam.core.Argument',
+  ],
+
   properties: [
     { class: 'Boolean', name: 'isFramed',   value: false },
     { class: 'Boolean', name: 'isMerged',   value: false },
     { class: 'Int',     name: 'mergeDelay', value: 16, units: 'ms' },
     {
+      class: 'FObjectArray',
+      of: 'foam.core.Argument',
       name: 'args',
       factory: function() {
-        return [ { name: 'sub', javaType: 'foam.core.Detachable' } ];
+        return [
+          this.Argument.create({
+            name: 'sub',
+            type: 'Detachable'
+          })
+        ];
       }
     }
   ],
@@ -109,7 +120,8 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Model',
-
+  package: 'foam.core',
+  name: 'ListenerModelRefine',
   properties: [
     {
       class: 'AxiomArray',

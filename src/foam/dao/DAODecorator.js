@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+// TODO: the name of this is confusing because it overloads the term
+// "DAO Decorator". Rename to DAOFilter or EasyDAODecorator or something else.
 foam.INTERFACE({
   package: 'foam.dao',
   name: 'DAODecorator',
@@ -22,56 +24,62 @@ foam.INTERFACE({
   methods: [
     {
       name: 'write',
-      returns: 'Promise',
-      javaReturns: 'foam.core.FObject',
+      returns: 'foam.core.FObject',
+      async: true,
       args: [
         {
-          name: 'context'
+          name: 'context',
+          type: 'Context'
         },
         {
-          name: 'dao'
+          name: 'dao',
+          type: 'foam.dao.DAO'
         },
         {
           name: 'obj',
-          javaType: 'foam.core.FObject'
+          type: 'FObject'
         },
         {
           name: 'existing',
-          javaType: 'foam.core.FObject'
+          type: 'FObject'
         }
       ]
     },
     {
       name: 'read',
-      returns: 'Promise',
-      javaReturns: 'foam.core.FObject',
+      returns: 'foam.core.FObject',
+      async: true,
       args: [
         {
-          name: 'context'
+          name: 'context',
+          type: 'Context'
         },
         {
-          name: 'dao'
+          name: 'dao',
+          type: 'foam.dao.DAO'
         },
         {
           name: 'obj',
-          javaType: 'foam.core.FObject'
+          type: 'FObject'
         }
       ]
     },
     {
       name: 'remove',
-      returns: 'Promise',
-      javaReturns: 'foam.core.FObject',
+      returns: 'foam.core.FObject',
+      async: true,
       args: [
         {
-          name: 'context'
+          name: 'context',
+          type: 'Context'
         },
         {
-          name: 'dao'
+          name: 'dao',
+          type: 'foam.dao.DAO'
         },
         {
           name: 'obj',
-          javaType: 'foam.core.FObject'
+          type: 'FObject'
         }
       ]
     }

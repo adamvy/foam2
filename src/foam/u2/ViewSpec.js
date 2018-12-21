@@ -20,16 +20,22 @@ foam.CLASS({
   name: 'ViewSpec',
   extends: 'foam.core.Property',
 
-  documentation: 'Set a ViewFactory to be a string containing a class name, ' +
-      'a Class object, or a factory function(args, context). ' +
-      'Useful for rowViews and similar.',
+  documentation: `
+    Set a ViewFactory to be a string containing a class name,
+    a Class object, or a factory function(args, context).
+    Useful for rowViews and similar.`
+  ,
 
   axioms: [
     {
       installInClass: function(cls) {
-        cls.createView = function(spec, args, self, ctx) {
-          if ( foam.u2.Element.isInstance(spec) )
+        cls.createView = function(spec, args, self, ctx, disableWarning) {
+          if ( foam.u2.Element.isInstance(spec) ) {
+            if ( foam.debug && ! disableWarning ) {
+              console.warn('Warning: Use of literal View as ViewSpec: ', spec.cls_.id);
+            }
             return spec.copyFrom(args);
+          }
 
           if ( foam.core.Slot.isInstance(spec) )
             return spec;
@@ -38,7 +44,7 @@ foam.CLASS({
             return spec.toE(args, ctx);
 
           if ( foam.Function.isInstance(spec) )
-            return foam.u2.ViewSpec.createView(spec.call(self, args, ctx), args, self, ctx);
+            return foam.u2.ViewSpec.createView(spec.call(self, args, ctx, true), args, self, ctx, true);
 
           if ( foam.Object.isInstance(spec) ) {
             var ret = spec.create ?

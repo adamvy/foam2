@@ -40,7 +40,7 @@ foam.CLASS({
       // TODO check if this leaks.
       swiftFactory: 'return SkeletonBox_create(["data": self])',
       swiftPostSet: function() {/*
-if let oldValue = oldValue as? SkeletonBox {
+if let oldValue = oldValue as? foam_box_SkeletonBox {
   oldValue.clearProperty("data")
 }
       */},
@@ -53,7 +53,7 @@ if let oldValue = oldValue as? SkeletonBox {
       swiftCode: function() {/*
 self.onDetach(Subscription(detach: {
   if self.hasOwnProperty("registrySkeleton") {
-    (self.registrySkeleton as? FObject)?.clearProperty("data")
+    (self.registrySkeleton as? foam_core_FObject)?.clearProperty("data")
   }
 }))
       */},
@@ -62,21 +62,21 @@ self.onDetach(Subscription(detach: {
     {
       name: 'send',
       swiftCode: function() {/*
-if let object = msg.object as? SubBoxMessage {
+if let object = msg.object as? foam_box_SubBoxMessage {
   let name = object.name
 
   if let reg = registry_[name] as? Registration {
     msg.object = object.object;
     try reg.localBox.send(msg);
   } else {
-    if let errorBox = msg.attributes["errorBox"] as? Box {
+    if let errorBox = msg.attributes["errorBox"] as? foam_box_Box {
       try errorBox.send(
         Message_create([
           "object": NoSuchNameException_create(["name": name ])
         ]))
     }
   }
-} else if let _ = msg.object as? HelloMessage {
+} else if let _ = msg.object as? foam_box_HelloMessage {
 } else {
   try registrySkeleton!.send(msg)
 }
@@ -103,7 +103,7 @@ if let object = msg.object as? SubBoxMessage {
         }
       },
       javaCode: `
-Object obj = message.getObject();
+Object obj = msg.getObject();
 
 if ( obj instanceof foam.box.SubBoxMessage ) {
   foam.box.SubBoxMessage sbm = (foam.box.SubBoxMessage)obj;
@@ -112,10 +112,10 @@ if ( obj instanceof foam.box.SubBoxMessage ) {
   Registration dest = (Registration)getRegistry_().get(name);
 
   if ( dest != null ) {
-    message.setObject(sbm.getObject());
-    dest.getLocalBox().send(message);
-  } else if ( message.getAttributes().containsKey("replyBox") ) {
-    foam.box.Box replyBox = (foam.box.Box)message.getAttributes().get("replyBox");
+    msg.setObject(sbm.getObject());
+    dest.getLocalBox().send(msg);
+  } else if ( msg.getAttributes().containsKey("replyBox") ) {
+    foam.box.Box replyBox = (foam.box.Box)msg.getAttributes().get("replyBox");
     foam.box.Message errorMessage = getX().create(foam.box.Message.class);
     errorMessage.setObject(getX().create(foam.box.NoSuchNameException.class));
 

@@ -35,9 +35,21 @@ foam.CLASS({
   properties: [
     'name',
     {
+      class: 'Class',
+      name: 'of'
+    },
+    {
+      class: 'TypeProperty',
+      name: 'type'
+    },
+    {
+      class: 'StringArray',
+      name: 'flags'
+    },
+    {
       name: 'value',
-      factory: function() {
-        return this.factory();
+      expression: function(factory) {
+        return factory ? factory() : null;
       },
     },
     'factory',
@@ -63,6 +75,8 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Model',
+  package: 'foam.core',
+  name: 'ModelConstantRefine',
   properties: [
     {
       class: 'AxiomArray',

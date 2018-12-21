@@ -32,14 +32,18 @@ public class CachedUserAndGroupAuthService
   protected Map<Long, Map<String, Boolean>> userMap = new LRULinkedHashMap<>(1000000);
   protected Map<String, Boolean> permissionMap;
 
+  public CachedUserAndGroupAuthService(X x) {
+    super(x);
+  }
+
   @Override
-  public Boolean checkPermission(foam.core.X x, java.security.Permission permission) {
+  public boolean checkPermission(foam.core.X x, java.security.Permission permission) {
     if ( x == null || permission == null ) return false;
 
     User user = (User) x.get("user");
     if ( user == null ) return false;
 
-    Group group = (Group) user.getGroup();
+    Group group = user.findGroup(x);
     if ( group == null ) return false;
 
     if ( userMap.containsKey(user.getId()) ) {

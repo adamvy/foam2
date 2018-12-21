@@ -60,25 +60,6 @@ public abstract class AbstractArrayPropertyInfo
   }
 
   @Override
-  public void toXML (FObject obj, Document doc, Element objElement) {
-    Object value = this.f(obj);
-
-    // Return if some kind of array other than Object[], like int[]
-    if ( value == null || ! ( value instanceof Object[]) ) return;
-
-    Object[] nestObj = (Object[]) value;
-    Element  prop    = doc.createElement(this.getName());
-
-    objElement.appendChild(prop);
-
-    for ( int k = 0; k < nestObj.length; k++ ) {
-      Element nestedProp = doc.createElement("value");
-      nestedProp.appendChild(doc.createTextNode(nestObj[k].toString()));
-      prop.appendChild(nestedProp);
-    }
-  }
-
-  @Override
   public void setStatementValue(IndexedPreparedStatement stmt, FObject o) throws java.sql.SQLException {
     Object obj = this.get(o);
     if ( obj == null ) {
@@ -118,5 +99,28 @@ public abstract class AbstractArrayPropertyInfo
     //replace comma to backslash+comma
     s = s.replace(",", "\\,");
     builder.append(s);
+  }
+
+  @Override
+  public boolean hardDiff(FObject o1, FObject o2, FObject diff) {
+    //if both this.get(o1) and this.get(o2) are null, then no difference
+    //if one is null and the other one is not null, then difference
+    if ( this.get(o1) == null ) {
+      if ( this.get(o2) == null ) {
+        return false;
+      } else {
+        //shadow copy, since we only use to print out diff entry in journal
+        this.set(diff, this.get(o2));
+        return true;
+      }
+    }
+    //Both this.get(o1) and thid.get(o2) are not null
+    //The propertyInfo is instance of AbstractObjectProperty, so that there is no way to do nested propertyInfo check
+    //No matter if there are point to same instance or not, treat them as difference
+    //if there are point to different instance, indeed there are different
+    //if there are point to same instance, we can not guarantee if there are no difference comparing with record in the journal.
+    //shodow copy
+    this.set(diff, this.get(o2));
+    return true;
   }
 }

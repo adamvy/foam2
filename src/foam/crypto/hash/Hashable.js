@@ -8,24 +8,5 @@ foam.INTERFACE({
   package: 'foam.crypto.hash',
   name: 'Hashable',
 
-  documentation: 'Hashable interface',
-
-  methods: [
-    {
-      name: 'hash',
-      javaReturns: 'byte[]',
-      args: [
-        {
-          name: 'algorithm',
-          javaType: 'String',
-          documentation: 'Hashing algorithm to use'
-        },
-        {
-          name: 'hash',
-          javaType: 'byte[]',
-          documentation: 'Previous hash (used for chaining)'
-        }
-      ]
-    }
-  ]
+  documentation: 'Hashable interface placeholder.'
 });

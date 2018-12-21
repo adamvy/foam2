@@ -10,6 +10,10 @@ foam.CLASS({
 
   tableColumns: [ 'id', 'parent', 'label', 'order' ],
 
+  imports: [
+    'lastMenuLaunchedListener?'
+  ],
+
   properties: [
     {
       class: 'String',
@@ -18,22 +22,48 @@ foam.CLASS({
     },
     {
       class: 'String',
-      name: 'label'
+      name: 'label',
+      documentation: 'Menu label.'
     },
     {
       class: 'FObjectProperty',
       name: 'handler',
-      view: { class: 'foam.u2.view.FObjectView' }
+      documentation: 'View initialized when menu is launched.',
+      view: {
+        class: 'foam.u2.view.FObjectView',
+        choices: [
+          [ 'foam.nanos.menu.DAOMenu',      'DAO' ],
+          [ 'foam.nanos.menu.DocumentMenu', 'Document' ],
+          [ 'foam.nanos.menu.DocumentFileMenu', 'External Document' ],
+          [ 'foam.nanos.menu.LinkMenu',     'Link' ],
+          [ 'foam.nanos.menu.ListMenu',     'List' ],
+          [ 'foam.nanos.menu.SubMenu',      'Submenu' ],
+          [ 'foam.nanos.menu.TabsMenu',     'Tabs' ],
+          [ 'foam.nanos.menu.ViewMenu',     'View' ]
+        ]
+      }
     },
     {
       class: 'Int',
       name: 'order',
+      documentation: 'Used to order the menu list.',
       value: 1000
+    },
+    {
+      class: 'String',
+      name: 'description',
+      documentation: 'Menu item explaination.'
+    },
+    {
+      class: 'String',
+      name: 'icon',
+      documentation: 'Icon associated to the menu item.'
     }
   ],
 
   methods: [
     function launch_(X, e) {
+      this.lastMenuLaunchedListener && this.lastMenuLaunchedListener(this);
       this.handler && this.handler.launch(X, this, e);
     }
   ],
@@ -59,6 +89,10 @@ foam.RELATIONSHIP({
   },
   targetProperty: {
     class: 'String',
-    value: ''
+    value: '',
+    view: {
+      class: 'foam.u2.view.ReferenceView',
+      placeholder: '--'
+    }
   }
 });
