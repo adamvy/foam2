@@ -16,6 +16,7 @@ global.FOAM_FLAGS = { 'java': true, 'debug': true, 'js': false };
 
 require('../src/foam.js');
 require('../src/foam/nanos/nanos.js');
+require('../src/foam/support/support.js');
 
 var srcPath = __dirname + "/../src/";
 
@@ -57,11 +58,9 @@ externalFile.blacklist.forEach(function(cls) {
   'foam.core.AbstractInterface',
   'foam.core.Property',
   'foam.core.String',
-  'foam.core.Validatable',
 
   // These have hand written java impls so we don't want to clobber them.
   // TODO: Change gen.sh to prefer hand written java files over generated.
-  'foam.dao.FilteredDAO',
   'foam.dao.LimitedDAO',
   'foam.dao.OrderedDAO',
   'foam.dao.SkipDAO',
@@ -91,7 +90,6 @@ externalFile.blacklist.forEach(function(cls) {
   'foam.dao.DecoratedDAO',
   'foam.dao.DeDupDAO',
   'foam.dao.IDBDAO',
-  'foam.dao.JDAO',
   'foam.dao.LoggingDAO',
   'foam.dao.MDAO',
   'foam.dao.PromisedDAO',
@@ -262,28 +260,56 @@ var addDepsToClasses = function() {
     classloader.addClassPath(p);
   });
 
-  return Promise.all(classes.map(function(cls) {
-    return classloader.load(cls);
-  })).then(function() {
-    var classMap = {};
-    var classQueue = classes.slice(0);
-    while ( classQueue.length ) {
-      var cls = classQueue.pop();
-      if ( ! classMap[cls] && ! blacklist[cls] ) {
-        classMap[cls] = true;
-        cls = foam.lookup(cls);
-        cls.getAxiomsByClass(foam.core.Requires).filter(flagFilter).forEach(function(r) {
-          r.javaPath && classQueue.push(r.javaPath);
-        });
-        cls.getAxiomsByClass(foam.core.Implements).filter(flagFilter).forEach(function(r) {
-          classQueue.push(r.path);
-        });
-        if ( cls.model_.extends ) classQueue.push(cls.model_.extends);
+  return (function() {
+    var loadClass = foam.cps.awrap(classloader.load.bind(classloader));
+
+    function collectDeps() {
+      var classMap = {};
+      var classQueue = classes.slice(0);
+      while ( classQueue.length ) {
+        var cls = classQueue.pop();
+        if ( ! classMap[cls] && ! blacklist[cls] ) {
+          cls = foam.lookup(cls);
+          if ( ! checkFlags(cls.model_) ) continue;
+          classMap[cls.id] = true;
+          cls.getAxiomsByClass(foam.core.Requires).filter(flagFilter).forEach(function(r) {
+            r.javaPath && classQueue.push(r.javaPath);
+          });
+          cls.getAxiomsByClass(foam.core.Implements).filter(flagFilter).forEach(function(r) {
+            classQueue.push(r.path);
+          });
+          if ( cls.model_.extends ) classQueue.push(cls.model_.extends);
+        }
       }
+      classes = Object.keys(classMap);
     }
-    classes = Object.keys(classMap);
-  });
+
+    with ( foam.cps ) {
+      return new Promise(
+        sequence(
+          compose(map(loadClass), value(classes)),
+          wrap(collectDeps)));
+
+    }
+  })();
 };
+
+function checkFlags(model) {
+  var parent = true;
+
+  if ( model.extends &&
+       ( model.extends != 'foam.core.FObject' && model.extends != 'FObject' ) ) {
+    parent = checkFlags(foam.lookup(model.extends).model_);
+  }
+
+  if ( ! parent ) return false;
+
+  if ( model.flags && model.flags.indexOf('java') == -1 ) {
+    return false;
+  }
+
+  return true;
+}
 
 addDepsToClasses().then(function() {
   classes.forEach(loadClass);

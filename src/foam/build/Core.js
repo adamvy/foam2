@@ -1,2 +1,0 @@
-foam.CLASS({
-  package: 

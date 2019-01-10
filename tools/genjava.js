@@ -14,6 +14,7 @@ global.FOAM_FLAGS = { 'java': true, 'debug': true, 'js': false };
 
 require('../src/foam.js');
 require('../src/foam/nanos/nanos.js');
+require('../src/foam/support/support.js');
 
 var srcPath = __dirname + "/../src/";
 
@@ -52,11 +53,9 @@ externalFile.blacklist.forEach(function(cls) {
   'foam.core.AbstractInterface',
   'foam.core.Property',
   'foam.core.String',
-  'foam.core.Validatable',
 
   // These have hand written java impls so we don't want to clobber them.
   // TODO: Change gen.sh to prefer hand written java files over generated.
-  'foam.dao.FilteredDAO',
   'foam.dao.LimitedDAO',
   'foam.dao.OrderedDAO',
   'foam.dao.SkipDAO',
@@ -86,7 +85,6 @@ externalFile.blacklist.forEach(function(cls) {
   'foam.dao.DecoratedDAO',
   'foam.dao.DeDupDAO',
   'foam.dao.IDBDAO',
-  'foam.dao.JDAO',
   'foam.dao.LoggingDAO',
   'foam.dao.MDAO',
   'foam.dao.PromisedDAO',
@@ -203,29 +201,6 @@ function generateProxy(intf) {
   generateClass(proxy.buildClass());
 }
 
-function copyJavaClassesToBuildFolder(startPath) {
-  var files = fs_.readdirSync(startPath);
-  var result = [];
-
-  files.forEach(function (f) {
-    var filePath = path_.join(startPath, f);
-    var fileStat = fs_.statSync(filePath);
-    var outputPath = path_.join(__dirname, '../build/', filePath.split('src/').pop());
-
-    if (fileStat.isDirectory()) {
-      if (!fs_.existsSync(outputPath)) {
-        fs_.mkdirSync(outputPath);
-      }
-
-      result = result.concat(copyJavaClassesToBuildFolder(filePath));
-    } else if (f.search('.js') < 0) {
-      writeFileIfUpdated(outputPath, fs_.readFileSync(filePath).toString(), result);
-    }
-  });
-
-  return result;
-}
-
 function writeFileIfUpdated(outfile, buildJavaSource, opt_result) {
   if (! ( fs_.existsSync(outfile) && (fs_.readFileSync(outfile).toString() == buildJavaSource))) {
     fs_.writeFileSync(outfile, buildJavaSource);
@@ -264,8 +239,9 @@ var addDepsToClasses = function() {
     while ( classQueue.length ) {
       var cls = classQueue.pop();
       if ( ! classMap[cls] && ! blacklist[cls] ) {
-        classMap[cls] = true;
         cls = foam.lookup(cls);
+        if ( ! flagFilter(cls.model_) ) continue;
+        classMap[cls.id] = true;
         cls.getAxiomsByClass(foam.core.Requires).filter(flagFilter).forEach(function(r) {
           r.javaPath && classQueue.push(r.javaPath);
         });
@@ -289,8 +265,4 @@ addDepsToClasses().then(function() {
   abstractClasses.forEach(generateAbstractClass);
   skeletons.forEach(generateSkeleton);
   proxies.forEach(generateProxy);
-
-  var srcFolder = path_.join(__dirname, '../src/');
-
-  copyJavaClassesToBuildFolder(srcFolder);
 });
