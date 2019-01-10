@@ -584,7 +584,9 @@ foam.CLASS({
             case 9: l(s, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8]); break;
             default: l.apply(l, [s].concat(Array.from(a)));
           }
-        } catch (x) {}
+        } catch (x) {
+          if ( foam._IS_DEBUG_ ) console.warn("Listener threw exception", x);
+        }
         count++;
       }
       return count;
@@ -715,12 +717,6 @@ foam.CLASS({
         // Disconnect so that calling detach more than once is harmless
         node.next = node.prev = null;
       };
-
-      node.sub.reattach = (function(target, args) {
-        return function() {
-          target.sub.apply(target, args);
-        };
-      })(this, Array.from(arguments));
 
       if ( listeners.next ) listeners.next.prev = node;
       listeners.next = node;

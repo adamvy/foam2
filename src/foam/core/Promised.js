@@ -23,9 +23,9 @@ foam.CLASS({
   properties: [
     {
       name: 'code',
-      expression: function(name, property, returns, delegate) {
+      expression: function(name, property, type, delegate) {
         if ( delegate ) {
-          return returns ?
+          return type ?
             function() {
               var self = this;
               var args = arguments;
@@ -41,7 +41,7 @@ foam.CLASS({
               });
             };
         }
-        return returns ?
+        return type ?
           function() {
             var self = this;
             var args = arguments;
@@ -157,7 +157,7 @@ foam.CLASS({
         pendingMethods.push(foam.core.PromisedMethod.create({
           name: methods[i].name,
           property: myName,
-          returns:  methods[i].returns,
+          type:  methods[i].type,
           delegate: false
         }));
       }

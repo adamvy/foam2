@@ -63,7 +63,7 @@ foam.CLASS({
     'documentation',
     'flags',
     {
-      name: 'returns',
+      name: 'type',
       value: 'Void'
     },
     {

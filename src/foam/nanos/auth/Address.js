@@ -11,7 +11,10 @@ foam.CLASS({
   documentation: 'Postal address.',
 
   implements: [
-    'foam.mlang.Expressions',
+    {
+      path: 'foam.mlang.Expressions',
+      flags: ['js'],
+    },
   ],
 
   requires: [
@@ -194,7 +197,7 @@ foam.CLASS({
   methods: [
     {
       name: 'getAddress',
-      javaReturns: 'String',
+      javaType: 'String',
       code: function() { return this.structured ? this.streetNumber + ' ' + this.streetName : this.address1; },
       javaCode: `return getStructured() ? getStreetNumber() + " " + getStreetName() : getAddress1();`
     }

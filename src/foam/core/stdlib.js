@@ -696,11 +696,6 @@ foam.LIB({
           a.splice(i, 1);
         }
       }
-    },
-    function find(a, p) {
-      for ( var i = 0 ; i < a.length ; i++ ) {
-        if ( p(a[i]) ) return a[i];
-      }
     }
   ]
 });
@@ -810,11 +805,20 @@ foam.LIB({
     },
     function is(a, b) { return a === b; },
     function isInstance(o) {
-      return typeof o === 'object' &&
-        ! foam.Array.isInstance(o) &&
-        ! foam.core.FObject.isInstance(o);
+      return typeof o === 'object' && ! Array.isArray(o) &&
+          ! foam.core.FObject.isInstance(o) && ! foam.Null.isInstance(o);
     },
-    function clone(o) { return o; },
+    function clone(o) {
+      const newObj = {};
+
+      for ( var key in o ) {
+        if ( o.hasOwnProperty(key) ) {
+          newObj[key] = foam.util.clone(o[key]);
+        }
+      }
+
+      return newObj;
+    },
     function equals(a, b) { return a === b; },
     function compare(a, b) {
       if ( ! foam.Object.isInstance(b) ) return 1;

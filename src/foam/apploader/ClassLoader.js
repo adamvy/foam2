@@ -68,7 +68,8 @@ have multiple classloaders running alongside eachother`
     },
     {
       name: 'load',
-      returns: 'Promise',
+      type: 'Class',
+      async: true,
       args: [ { class: 'String', name: 'id' } ],
       code: function(id) {
         return this.load_(id, []);
@@ -76,7 +77,8 @@ have multiple classloaders running alongside eachother`
     },
     {
       name: 'maybeLoad',
-      returns: 'Promise',
+      type: 'Class',
+      async: true,
       documentation: "Like load, but don't throw if not found.",
       args: [ { name: 'id', type: 'String' } ],
       code: function(id) {
@@ -88,16 +90,18 @@ have multiple classloaders running alongside eachother`
     },
     {
       name: 'maybeLoad_',
-      returns: 'Promise',
+      type: 'Class',
+      async: true,
       args: [ { name: 'id', type: 'String' },
-              { name: 'path', type: 'StringArray' } ],
+              { name: 'path', type: 'String[]' } ],
       code: function(id, path) {
         return this.load_(id, path).catch(function() { return null; });
       }
     },
     {
       name: 'latch',
-      returns: 'Promise',
+      type: 'Class',
+      async: true,
       args: [ { name: 'json' } ],
       code: function(json) {
         var id = json.package ?
@@ -109,9 +113,10 @@ have multiple classloaders running alongside eachother`
     },
     {
       name: 'load_',
-      returns: 'Promise',
+      type: 'Class',
+      async: true,
       args: [ { name: 'id', type: 'String' },
-              { name: 'path', type: 'StringArray' } ],
+              { name: 'path', type: 'String[]' } ],
       code: function(id, path) {
         var self = this;
 
@@ -188,7 +193,7 @@ have multiple classloaders running alongside eachother`
     {
       name: 'buildClass_',
       args: [ { name: 'model', type: 'Model' },
-              { name: 'path', type: 'StringArray' } ],
+              { name: 'path', type: 'String[]' } ],
       code: function(model, path) {
         var self = this;
 

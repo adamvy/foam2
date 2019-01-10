@@ -32,7 +32,7 @@ foam.CLASS({
   methods: [
     {
       name: 'generateSecret',
-      returns: 'ByteArray',
+      type: 'Byte[]',
       args: [
         {
           name: 'size',
@@ -45,7 +45,7 @@ return bytes;`
     },
     {
       name: 'calculateCode',
-      returns: 'Long',
+      type: 'Long',
       javaThrows: [
         'java.security.InvalidKeyException',
         'java.security.NoSuchAlgorithmException'
@@ -53,7 +53,7 @@ return bytes;`
       args: [
         {
           name: 'key',
-          type: 'ByteArray'
+          type: 'Byte[]'
         },
         {
           name: 'interval',

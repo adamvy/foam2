@@ -56,89 +56,7 @@ ${Object.keys(o).map(function(k) {
     {
       name: 'toJavaType',
       code: function(type) {
-        // Is this right?
-
-        if ( ! type ) type = 'Any';
-
-        // Is this the right idea?
-        var isArray = type.endsWith('Array');
-        if ( isArray ) type = type.substring(0, type.lastIndexOf('Array'));
-
-        // TODO(adamvy): Model types as a object and use polymorphism
-        // instead of this stupid switch statement.  I haven't done
-        // that yet because I want to see all the different variations
-        // we have/need to express a type so I have a better idea how
-        // to design it.
-
-        var s;
-
-        switch ( type ) {
-        case "Number":
-        case "Float":
-          s = "float";
-          break;
-        case "Double":
-          s = "double";
-          break;
-        case "String":
-          s = "String"
-          break;
-        case "Long":
-          s = "long";
-          break;
-        case "Integer":
-          s = "int";
-          break;
-        case "Boolean":
-          s = "boolean";
-          break;
-        case "Object":
-          s = "Object";
-          break;
-        case "Any":
-          s = "Object";
-          break;
-        case "Short":
-          s = "short";
-          break;
-        case "Byte":
-          s = "byte";
-          break;
-        case "Float":
-          s = "float";
-          break;
-        case "Double":
-          s = "double";
-          break;
-        case "List":
-          s = "java.util.List";
-          break;
-        case "Map":
-          s = "java.util.Map";
-          break;
-        case "Class":
-          s = "foam.core.ClassInfo";
-          break;
-        case "Char":
-          s = "char";
-          break;
-        case "Date":
-        case "DateTime":
-        case "Time":
-          s = "java.util.Date";
-          break;
-        case "Void":
-          s = "void";
-          break;
-        case "Context":
-          s = "foam.core.X";
-          break;
-        default:
-          s = foam.lookup(type).id;
-        }
-
-        if ( isArray ) s += '[]';
-        return s;
+        return foam.core.type.toType(type).toJavaType();
       }
     }
   ]
@@ -152,10 +70,10 @@ foam.CLASS({
     {
       name: 'expression',
       expression: function(value) {
-        // The value thing feels like a hack around the fact that a factory
-        // will take priority over a value despite the factory being a default
-        // value and the value being actually set.
-        // TODO: Is there a deeper issue here?
+        // TODO: This is a large hack around the way SHADOW_MAP works.
+        // What we really want is a way to specify a default
+        // factory/expression but not to use it if the user sets a
+        // default value.
         return function(type) {
           return value || foam.java.toJavaType(type);
         }
@@ -164,24 +82,6 @@ foam.CLASS({
     {
       name: 'name',
       value: 'javaType'
-    }
-  ]
-});
-
-foam.CLASS({
-  package: 'foam.java',
-  name: 'JavaReturns',
-  extends: 'String',
-  properties: [
-    {
-      name: 'factory',
-      value: function() {
-        return foam.java.toJavaType(this.returns);
-      }
-    },
-    {
-      name: 'name',
-      value: 'javaReturns'
     }
   ]
 });
@@ -379,7 +279,7 @@ foam.CLASS({
       var privateName = this.name + '_';
       var capitalized = foam.String.capitalize(this.name);
       var constantize = foam.String.constantize(this.name);
-      var isSet = this.name + 'IsSet_';
+      var isSet       = this.name + 'IsSet_';
       var factoryName = capitalized + 'Factory_';
 
       cls.
@@ -416,6 +316,12 @@ foam.CLASS({
           ],
           type: 'void',
           body: this.generateSetter_()
+        }).
+        method({
+          name: 'clear' + capitalized,
+          visibility: 'public',
+          type: 'void',
+          body: isSet + ' = false;'
         });
 
       if ( this.javaFactory ) {
@@ -653,7 +559,7 @@ foam.CLASS({
       name: 'javaCode',
       flags: ['java'],
     },
-    { class: 'foam.java.JavaReturns' },
+    { class: 'foam.java.JavaType' },
     {
       class: 'Boolean',
       name: 'final'
@@ -685,7 +591,7 @@ foam.CLASS({
 
       cls.method({
         name: this.name,
-        type: this.javaReturns || 'void',
+        type: this.javaType || 'void',
         visibility: 'public',
         static: this.isStatic(),
         final: this.final,
@@ -798,11 +704,11 @@ foam.CLASS({
         // TODO: This could be an expression if the copyFrom in createChildMethod
         // didn't finalize its value
         if ( this.name == 'find' ) {
-          console.log(this.name, 'returns', this.javaReturns);
+          console.log(this.name, 'returns', this.javaType);
         }
         var code = '';
 
-        if ( this.javaReturns && this.javaReturns !== 'void' ) {
+        if ( this.javaType && this.javaType !== 'void' ) {
           code += 'return ';
         }
 
@@ -871,7 +777,7 @@ new ${self.cls_.id}.Builder(EmptyX.instance())
     },
     {
       name: 'toString',
-      javaReturns: 'String',
+      javaType: 'String',
       code: foam.core.FObject.prototype.toString
     }
   ]
@@ -1404,12 +1310,6 @@ foam.CLASS({
   ]
 });
 
-
-// TODO: Is StringArray important enough to be special like this?
-// Should we just be doing type: 'Array', of: 'String' or similar?  Or
-// do we need to model types that are more specific in languages like
-// Java but unspecific in JS (arrays have specific types in Java but
-// are all the same in JS.)
 foam.CLASS({
   package: 'foam.java',
   name: 'StringArrayJavaRefinement',
@@ -1557,16 +1457,11 @@ foam.CLASS({
   flags: ['java'],
 
   properties: [
-    {
-      name: 'javaType',
-      expression: function(of) {
-        return of + '[]';
-      }
-    },
+    { class: 'foam.java.JavaType' },
     {
       name: 'javaFactory',
-      expression: function(of) {
-        return `return new ${of}[0];`;
+      expression: function(type) {
+        return `return new ${foam.core.type.toType(type).type.toJavaType()}[0];`;
       }
     },
     {
@@ -1706,7 +1601,8 @@ foam.CLASS({
   properties: [
     ['javaInfoType', 'foam.core.AbstractObjectPropertyInfo'],
     ['javaJSONParser', 'foam.lib.json.AnyParser.instance()'],
-    ['javaQueryParser', 'foam.lib.query.AnyParser.instance()']
+    ['javaQueryParser', 'foam.lib.query.AnyParser.instance()'],
+    ['javaCSVParser', 'new foam.lib.csv.CSVStringParser()']
   ]
 });
 
@@ -2020,14 +1916,8 @@ foam.CLASS({
       name: 'javaPath',
       expression: function(path) {
         return path;
-      },
-    },
-    {
-      name: 'javaReturns',
-      expression: function(javaPath) {
-        return javaPath;
-      },
-    },
+      }
+    }
   ]
 });
 

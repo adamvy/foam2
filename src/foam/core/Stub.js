@@ -43,16 +43,16 @@ foam.CLASS({
             }) :
           cls.getAxiomsByClass(foam.core.Method).filter(function (m) { return cls.hasOwnAxiom(m.name); }) ).
           map(function(m) {
-                foam.assert(m.async || m.returns == 'Void',
+                foam.assert(m.async || m.type == 'Void',
                             'Cannot stub non-void non-async method', m.name, 'on class', cls.id);
 
                 return foam.core.StubMethod.create({
                   name: m.name,
                   replyPolicyName: replyPolicyName,
                   boxPropName: name,
-                  returns: m.returns,
-                  javaReturns: m.javaReturns,
-                  swiftReturns: m.swiftReturns,
+                  type: m.type,
+                  javaType: m.javaType,
+                  swiftType: m.swiftType,
                   args: m.args
                 });
               });

@@ -87,5 +87,7 @@ foam.CLASS({
     }
   ],
 
-  methods: [ foam.boot.buildClass ]
+  methods: [
+    foam.boot.buildClass
+  ]
 });
