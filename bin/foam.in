@@ -10,90 +10,89 @@ process.on('unhandledException', function(e) {
   process.exit(1);
 });
 
-var bootclasspathFlag = false;
-var classpathFlag = false;
-var classFlag = false;
-var fileFlag = false;
-var javaFlag = true;
-var debugFlag = true;
-var jsFlag = false;
-var classpath;
-var bootclasspath = '@BOOTCLASSPATH@';
-var cls;
-var file;
+(function() {
+  var classpathFlag = false;
+  var classFlag = false;
+  var fileFlag = false;
+  var javaFlag = true;
+  var debugFlag = true;
+  var jsFlag = true;
+  var webFlag = false;
+  var classpath = [];
+  var bootclasspath = '@BOOTCLASSPATH@';
+  var cls;
+  var file;
 
-for ( var arg, i = 2; arg = process.argv[i]; i++ ) {
-  if ( arg == '--classpath' ) {
-    classpathFlag = true;
-  } else if ( arg == '--bootclasspath' ) {
-    bootclasspathFlag = true;
-  } else if ( arg == '--file' ) {
-    fileFlag = true;
-  } else if ( arg == '--nojava' ) {
-    javaFlag = false;
-  } else if ( arg == '--nodebug' ) {
-    debugFlag = false;
-  } else if ( arg == '--debug' ) {
-    debugFlag = true;
-  } else if ( arg == '--js' ) {
-    jsFlag = true;
-  } else if ( classpathFlag ) {
-    classpath = arg;
-    classpathFlag = false;
-  } else if ( bootclasspathFlag ) {
-    bootclasspath = arg;
-    bootclasspathFlag = false;
-  } else if ( fileFlag ) {
-    file = arg;
-    fileFlag = false;
-  } else {
-    break;
-  }
-}
-
-global.FOAM_FLAGS = {
-  java: javaFlag,
-  debug: debugFlag,
-  js: false
-};
-
-require(bootclasspath + 'foam.js');
-
-if ( classpath ) {
-  classpath.split(':').forEach(function(cp) {
-    foam.__context__.classloader.addClassPath(cp);
-  });
-}
-
-cls = process.argv[i++];
-
-var args = {};
-var arg;
-var flag = false;
-
-for ( ; i < process.argv.length ; i++ ) {
-  var param = process.argv[i];
-
-  if ( flag ) {
-    args[arg] = process.argv[i];
-    flag = false;
-  } else {
-    if ( ! param.startsWith('--') ) {
-      console.error("Unknown argument", param);
-      console.error("Expected argument with --argname or --argname=value syntax.");
-      process.exit(1);
-    }
-    if ( param.indexOf('=') != -1 ) {
-      args[param.substring(2, param.indexOf('='))] = param.substring(param.indexOf('=') + 1);
+  for ( var arg, i = 2; arg = process.argv[i]; i++ ) {
+    if ( arg == '--classpath' ) {
+      classpathFlag = true;
+    } else if ( arg == '--bootclasspath' ) {
+      bootclasspathFlag = true;
+    } else if ( arg == '--file' ) {
+      fileFlag = true;
+    } else if ( arg == '--nojava' ) {
+      javaFlag = false;
+    } else if ( arg == '--nodebug' ) {
+      debugFlag = false;
+    } else if ( arg == '--debug' ) {
+      debugFlag = true;
+    } else if ( arg == '--js' ) {
+      jsFlag = true;
+    } else if ( classpathFlag ) {
+      classpath.push(arg);
+      classpathFlag = false;
+    } else if ( bootclasspathFlag ) {
+      bootclasspath = arg;
+      bootclasspathFlag = false;
+    } else if ( fileFlag ) {
+      file = arg;
+      fileFlag = false;
     } else {
-      arg = process.argv[i].substring(2);
-      flag = true;
+      break;
     }
   }
-}
 
-foam.__context__.classloader.load(cls).then(function(cls) {
-  var obj = cls.create(args);
+  global.FOAM_FLAGS = {
+    java: javaFlag,
+    debug: debugFlag,
+    js: jsFlag,
+    webFlag: true,
+  };
+
+  require(bootclasspath + 'foam.js');
+
+
+  classpath.forEach(function(cp) {
+    require(cp);
+  });
+
+  cls = process.argv[i++];
+
+  var args = {};
+  var arg;
+  var flag = false;
+
+  for ( ; i < process.argv.length ; i++ ) {
+    var param = process.argv[i];
+
+    if ( flag ) {
+      args[arg] = process.argv[i];
+      flag = false;
+    } else {
+      if ( ! param.startsWith('--') ) {
+        console.error("Unknown argument", param);
+        console.error("Expected argument with --argname or --argname=value syntax.");
+        process.exit(1);
+      }
+      if ( param.indexOf('=') != -1 ) {
+        args[param.substring(2, param.indexOf('='))] = param.substring(param.indexOf('=') + 1);
+      } else {
+        arg = process.argv[i].substring(2);
+        flag = true;
+      }
+    }
+  }
+
+  var obj = foam.lookup(cls).create(args);
   obj.execute && obj.execute();
-});
-
+})()
