@@ -242,6 +242,10 @@ foam.CLASS({
       name: 'forClass_',
       transient: true
     },
+    {
+      name: 'category',
+      value: 'Basic'
+    }
   ],
 
   methods: [
