@@ -27,8 +27,8 @@
   if ( ! flags.hasOwnProperty('debug') ) flags.debug = true;
   if ( ! flags.hasOwnProperty('js')    ) flags.js    = true;
 
-  function createLoadBrowser() {
-    var path = document.currentScript && document.currentScript.src;
+  function createLoadBrowser(root) {
+    path = document.currentScript && document.currentScript.src;
 
     // document.currentScript isn't supported on all browsers, so the following
     // hack gets the job done on those browsers.
@@ -42,10 +42,10 @@
       }
     }
 
-    path = path.substring(0, path.lastIndexOf('/')+1);
+    path = root || path.substring(0, path.lastIndexOf('/')+1);
 
-    if ( typeof global !== 'undefined' ) global.FOAM_ROOT = path;
-    if ( typeof window !== 'undefined' ) window.FOAM_ROOT = path;
+    if ( !root && typeof global !== 'undefined' ) global.FOAM_ROOT = path;
+    if ( !root && typeof window !== 'undefined' ) window.FOAM_ROOT = path;
 
     return function(filename) {
       document.writeln(
@@ -53,32 +53,32 @@
     };
   }
 
-  function loadServer() {
+  function loadServer(root) {
     var caller = flags.src || __filename;
-    var path = caller.substring(0, caller.lastIndexOf('/')+1);
+    var path = root || caller.substring(0, caller.lastIndexOf('/')+1);
 
-    if ( typeof global !== 'undefined' ) global.FOAM_ROOT = path;
+    if ( !root && typeof global !== 'undefined' ) global.FOAM_ROOT = path;
 
     return function (filename) {
       require(path + filename + '.js');
     }
   }
 
-  function createLoadWorker(filename) {
-    var path = FOAM_BOOT_PATH;
+  function createLoadWorker(root) {
+    var path = root || FOAM_BOOT_PATH;
     return function(filename) {
       importScripts(path + filename + '.js');
     };
   }
 
-  function getLoader() {
-    return isServer ? loadServer() :
-      isWorker ? createLoadWorker() :
-      createLoadBrowser();
+  function getLoader(root) {
+    return isServer ? loadServer(root) :
+      isWorker ? createLoadWorker(root) :
+      createLoadBrowser(root);
   }
 
-  this.FOAM_FILES = function(files) {
-    var load = getLoader();
+  this.FOAM_FILES = function(files, root) {
+    var load = getLoader(root);
 
     files.
       filter(function(f) {
