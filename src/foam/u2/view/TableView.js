@@ -99,7 +99,6 @@ foam.CLASS({
       },
       factory: function() {
         return foam.u2.view.FnFormatter.create({
-          class: 'foam.u2.view.FnFormatter',
           f: function(value, obj, axiom) {
             this.add(value);
           }

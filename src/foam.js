@@ -16,89 +16,59 @@
  */
 
 (function() {
-
   var isWorker = typeof importScripts !== 'undefined';
   var isServer = ( ! isWorker ) && typeof window === 'undefined';
 
-  var flags    = this.FOAM_FLAGS || {};
-  flags.web    = ! isServer,
-  flags.node   = isServer;
-  flags.loader = ! isServer;
-  if ( ! flags.hasOwnProperty('debug') ) flags.debug = true;
-  if ( ! flags.hasOwnProperty('js')    ) flags.js    = true;
+  var scope = isServer ? global : window;
 
-  function createLoadBrowser(root) {
-    path = document.currentScript && document.currentScript.src;
+  var foam = scope.foam = scope.foam || {};
 
-    // document.currentScript isn't supported on all browsers, so the following
-    // hack gets the job done on those browsers.
-    if ( ! path ) {
-      var scripts = document.getElementsByTagName('script');
-      for ( var i = 0 ; i < scripts.length ; i++ ) {
-        if ( scripts[i].src.match(/\/foam.js$/) ) {
-          path = scripts[i].src;
-          break;
-        }
-      }
-    }
-
-    path = root || path.substring(0, path.lastIndexOf('/')+1);
-
-    if ( !root && typeof global !== 'undefined' ) global.FOAM_ROOT = path;
-    if ( !root && typeof window !== 'undefined' ) window.FOAM_ROOT = path;
-
-    return function(filename) {
-      document.writeln(
-        '<script type="text/javascript" src="' + path + filename + '.js"></script>\n');
+  scope.foam.FLAGS = global.FOAM_FLAGS ||
+    {
+      web: ! isServer,
+      node: isServer,
+      debug: true,
+      java: true,
+      swift: true,
+      js: true
     };
+
+  function loadBrowser(path) {
+    document.writeln(
+      '<script type="text/javascript" src="' + path + '.js"></script>\n');
   }
 
-  function loadServer(root) {
-    var caller = flags.src || __filename;
-    var path = root || caller.substring(0, caller.lastIndexOf('/')+1);
-
-    if ( !root && typeof global !== 'undefined' ) global.FOAM_ROOT = path;
-
-    return function (filename) {
-      require(path + filename + '.js');
-    }
+  function loadServer(path) {
+    this.require = require;
+    require('vm').
+      runInThisContext(
+        require('fs').
+          readFileSync(path, { encoding: 'utf8' }),
+        { filename: path,
+          displayErrors: true });
   }
 
-  function createLoadWorker(root) {
-    var path = root || FOAM_BOOT_PATH;
-    return function(filename) {
-      importScripts(path + filename + '.js');
+  function loadWorker(path) {
+    importScripts(path);
+  }
+
+  function getLoader() {
+    return isServer ? loadServer :
+      isWorker ? loadWorker :
+      loadBrowser;
+  }
+
+  foam.LOAD_FILES = function(path) {
+    var root = path.substring(0, path.lastIndexOf('/') + 1);
+    var loader = getLoader();
+
+    foam.FILES = function(files) {
+      files.forEach(function(f) {
+        loader(root + f + '.js');
+      });
     };
-  }
-
-  function getLoader(root) {
-    return isServer ? loadServer(root) :
-      isWorker ? createLoadWorker(root) :
-      createLoadBrowser(root);
-  }
-
-  this.FOAM_FILES = function(files, root) {
-    var load = getLoader(root);
-
-    files.
-      filter(function(f) {
-        if ( f.flags ) {
-          for ( var i = 0; i < f.flags.length; i++ ) {
-            if ( ! flags[f.flags[i]] ) return false;
-          }
-        }
-        if ( f.notFlags ) {
-          for ( var i = 0; i < f.notFlags.length; i++ ) {
-            if ( flags[f.notFlags[i]] ) return false;
-          }
-        }
-        return true;
-      }).
-      map(function(f) { return f.name; }).
-      forEach(load);
-
-  //  delete this.FOAM_FILES;
+    loader(path);
   };
 
-  getLoader()('files');
+  foam.LOAD_FILES(__dirname + '/FILES.js');
 })();

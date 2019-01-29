@@ -127,6 +127,9 @@ foam.LIB({
       if ( this.refines ) {
         cls = context.lookup(this.refines);
         foam.assert(cls, 'Unknown refinement class: ' + this.refines);
+
+        // Don't run refinements that are disabled.
+        if ( ! foam.isEnabled(this.flags) ) return cls;
       } else {
         foam.assert(this.id, 'Missing id name.', this.name);
         foam.assert(this.name, 'Missing class name.');

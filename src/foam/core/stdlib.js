@@ -15,6 +15,20 @@
  * limitations under the License.
  */
 
+foam.__types__ = [];
+
+foam.DEFTYPE = function(obj) {
+  var id = obj.id;
+
+  for ( var i = 0 ; i < foam.__types__.length ; i++ ) {
+    var existing = foam.__types__[i];
+    if ( existing.id == id ) return foam.__types__[i] = obj;
+  }
+
+  foam.__types__.push(obj);
+  return obj;
+};
+
 // This must be declared as the first foam.LIB() using { name: ..., code: ... }
 // method syntax because foam.LIB() may invoke foam.Function.getName() on
 // methods declared using function methodName(...) { ... }.
@@ -39,6 +53,7 @@ foam.LIB({
     }
   ]
 });
+foam.DEFTYPE(foam.Function);
 
 /**
   Rather than extending built-in prototypes, we create flyweight versions.
@@ -97,32 +112,35 @@ foam.LIB({
   methods: [
     function isInstance(o) { return o === undefined; },
     function is(a, b) { return b === undefined; },
+    function isSubType(t) { return t === foam.Undefined; },
     function clone(o) { return o; },
     function equals(_, b) { return b === undefined; },
     function compare(_, b) { return b === undefined ? 0 : 1; },
     function hashCode() { return -2; }
   ]
 });
-
+foam.DEFTYPE(foam.Undefined);
 
 foam.LIB({
   name: 'foam.Null',
   methods: [
     function isInstance(o) { return o === null; },
     function is(a, b) { return b === null; },
+    function isSubType(t) { return t === foam.Null; },
     function clone(o) { return o; },
     function equals(_, b) { return b === null; },
     function compare(_, b) { return b === null ? 0 : 1; },
     function hashCode() { return -3; }
   ]
 });
-
+foam.DEFTYPE(foam.Null);
 
 foam.LIB({
   name: 'foam.Boolean',
   methods: [
     function isInstance(o) { return typeof o === 'boolean'; },
     function is(a, b) { return a === b; },
+    function isSubType(t) { return false },
     function clone(o) { return o; },
     function equals(a, b) { return a === b; },
     function compare(a, b) {
@@ -132,13 +150,14 @@ foam.LIB({
     function hashCode(o) { return o ? 1 : -1; }
   ]
 });
-
+foam.DEFTYPE(foam.Boolean);
 
 foam.LIB({
   name: 'foam.Function',
   methods: [
     function isInstance(o) { return typeof o === 'function'; },
     function is(a, b) { return a === b },
+    function isSubType(t) { return t === foam.Function; },
     function clone(o) { return o; },
     function equals(a, b) { return b ? a.toString() === b.toString() : false; },
     function compare(a, b) {
@@ -149,13 +168,15 @@ foam.LIB({
 
     /* istanbul ignore next */
     function bind(f, that, a1, a2, a3, a4) {
+      foam.assert(arguments.length <= 6,
+                  "foam.Function.bind doesn't support more than 4 values at the moment.");
+
       /**
        * Faster than Function.prototype.bind
        */
       switch ( arguments.length ) {
         case 1:
-          console.error('No arguments given to bind to.');
-          break;
+          return f;
         case 2: return function() { return f.apply(that, arguments); };
         case 3: return function(b1, b2, b3, b4) {
           switch ( arguments.length ) {
@@ -194,8 +215,6 @@ foam.LIB({
           }
         };
       }
-
-      console.error('Attempt to foam.Function.bind more than 4 arguments.');
     },
 
     /**
@@ -203,17 +222,22 @@ foam.LIB({
      * called in the future. Also known as a 'thunk'.
      */
     function memoize0(/* Function */ f) {
-      var set = false, cache;
+      var set = false, cache, inProgress;
       var ret = foam.Function.setName(
           function() {
             if ( ! set ) {
+              foam.assert( ! inProgress,
+                           "memoize0 re-entrant call to", foam.Function.getName(f));
               set = true;
+
+              inProgress = true;
               cache = f();
+              inProgress = false;
             }
             return cache;
           },
           'memoize0(' + f.name + ')');
-      ret.toString = function() { return f.toString(); };
+      ret.toString = function() { return 'foam.Function.memoize0(' + f.toString() + ')'; };
       return ret;
     },
 
@@ -239,7 +263,7 @@ foam.LIB({
             return cache[mKey];
           },
           'memoize1(' + f.name + ')');
-        ret.toString = function() { return f.toString(); };
+        ret.toString = function() { return 'foam.Function.memoize1(' + f.toString() + ')'; };
         return ret;
     },
 
@@ -253,190 +277,32 @@ foam.LIB({
       return f;
     },
 
-    /** Convenience method to append 'arguments' onto a real array **/
-    function appendArguments(a, args, start) {
-      start = start || 0;
-      for ( var i = start ; i < args.length ; i++ ) a.push(args[i]);
-      return a;
-    },
-
-    /** Finds the function(...) declaration arguments part. Strips newlines. */
-    function argsStr(f) {
-      var str = f.
-          toString().
-          replace(/(\r\n|\n|\r)/gm,'');
-      var isArrowFunction = !/(async )?function/.test(str);
-
-      var match = isArrowFunction ?
-          // (...args...) => ...
-          // or
-          // arg => ...
-          match = str.match(/^(\(([^)]*)\)[^=]*|([^=]+))=>/) :
-          // function (...args...) { ...body... }
-          match = str.match(/^(async )?function(\s+[_$\w]+|\s*)\((.*?)\)/);
-
-      if ( ! match ) {
-        /* istanbul ignore next */
-        throw new TypeError("foam.Function.argsStr could not parse input function:\n" + ( f ? f.toString() : 'undefined' ) );
-      }
-
-      return isArrowFunction ? (match[2] || match[1] || '') : (match[3] || '');
-    },
-
+    /**
+     * Return a function's arguments as an array.
+     * Ex. argNames(function(a,b) {...}) === ['a', 'b']
+     **/
     function argNames(f) {
-      /**
-       * Return a function's arguments as an array.
-       * Ex. argNames(function(a,b) {...}) === ['a', 'b']
-       **/
-      var args = foam.Function.argsStr(f);
-      args += ',';
+      var str = f.toString();
+      str = str.substring(str.indexOf('(') + 1, str.indexOf(')'));
+
+      var ws = "\\s*";
+      var ident = "([^,\\s\\)]+)";
+      var comma = ",?";
+      var comment = "/\\*(?:[^*]|[*][^/])*\\*/"
+      var skip = "(?:" + ws + "|" + comment + ")*";
+      var pattern = new RegExp(skip + ident + skip + comma, "mg");
 
       var ret = [];
-      // [ ws /* anything */ ] ws [...]arg_name ws [ /* anything */ ],
-      var argMatcher = /(\s*\/\*.*?\*\/)?\s*((?:\.\.\.)?[\w_$]+)\s*(\/\*.*?\*\/)?\s*\,+/g;
-      var typeMatch;
-      while ( ( typeMatch = argMatcher.exec(args) ) !== null ) {
-        ret.push(typeMatch[2]);
+      var match;
+      while ( match = pattern.exec(str) ) {
+        ret.push(match[1]);
       }
-      return ret;
-    },
-
-    /** Finds the function(...) declaration and finds the first block comment
-      in the function body. */
-    function functionComment(f) {
-      var match = f.
-          toString().
-          replace(/\n/g, '_#_%_%_'). // fake newlines
-          match(/^function(\s+[_$\w]+|\s*)\(.*?\)(?:\_\#\_\%\_\%\_|\s)*\{(?:\_\#\_\%\_\%\_|\s)*\/\*\*?\s*(.*?)\*?\*\/.*\}/);
-      if ( ! match ) {
-        return '';
-      } else {
-        return match[2] && match[2].replace(/_#_%_%_/g, '\n') || '';
-      }
-    },
-
-    function breakdown(f) {
-      var ident = "([^,\\s\\)]+)";
-      var ws = "\\s*";
-      var comment = "(?:\\/\\*(?:.|\\s)*?\\*\\/)?";
-      var skip = "(?:" + ws + comment + ws + ")*";
-      var header = "(?:function" + skip + ident + "?\\(|\\()" + skip;
-      var arg = "(?:" + ident + skip + ")";
-      var nextArg = "(?:," + skip + arg + ")";
-      var argEnd = "\\)";
-      var headerToBody = skip + "(?:\\=\\>)?" + skip;
-      var body = "\\{((?:.|\\s)*)\\}";
-
-      var breakdown = {
-        name: '',
-        args: [],
-        body: ''
-      };
-
-      var source = f.toString();
-
-      var lastIndex = 0;
-      var currentRegex;
-
-      function again() {
-        var match = currentRegex.exec(source);
-        if ( match ) lastIndex = currentRegex.lastIndex;
-        return match;
-      }
-
-      function next(e) {
-        prep(e);
-        return again();
-      }
-
-      function prep(e) {
-        currentRegex = new RegExp(e, "my");
-        currentRegex.lastIndex = lastIndex;
-      }
-
-      var match = next(header);
-      if ( ! match ) return null;
-
-      if ( match[1] ) breakdown.name = match[1];
-
-      match = next(arg);
-
-      if ( match ) {
-        breakdown.args.push(match[1]);
-        prep(nextArg);
-        while ( match = again() ) {
-          breakdown.args.push(match[1]);
-        }
-      }
-
-      match = next(argEnd);
-      if ( ! match ) return null;
-
-      if ( ! next(headerToBody) ) return null;
-
-      match = next(body);
-      if ( ! match ) return null;
-      breakdown.body = match[1];
-
-      return breakdown;
-    },
-
-    /**
-     * Calls fn, and provides the arguments to fn by looking
-     * up their names on source. The 'this' context is either
-     * source, or opt_self if provided.
-     *
-     * If the argument maps to a function on source, it is bound to source.
-     *
-     * Ex.
-     * var a = {
-     *   name: 'adam',
-     *   hello: function() {
-     *     console.blog('Hello ' + this.name);
-     *   }
-     * };
-     * function foo(name, hello) {
-     *   console.log('Name is ' + name);
-     *   hello();
-     * }
-     * foam.Function.withArgs(foo, a);
-     *
-     * Outputs:
-     * Name is adam
-     * Hello adam
-     *
-     **/
-    function withArgs(fn, source, opt_self) {
-      var argNames = foam.Function.argNames(fn);
-      var args = [];
-      for ( var i = 0 ; i < argNames.length ; i++ ) {
-        var a = source[argNames[i]];
-        if ( typeof a === 'function' ) a = a.bind(source);
-        args.push(a);
-      }
-      return fn.apply(opt_self || source, args);
-    },
-
-    function closure(fn) {
-      /**
-         Create a closure which still serializes to its definition.
-
-         var f = foam.Function.closure(function() { var i = 0; return function() { return i++; } });
-         f(); -> 0
-         f(); -> 1
-         f.toString(); -> "foam.Function.closure(function () { var i = 0; return function() { return i++; } })"
-      */
-      var ret = fn();
-
-      ret.toString = function() { return 'foam.Function.closure(' + fn.toString() + ')'; };
 
       return ret;
     }
   ]
 });
 
-
-/* istanbul ignore next */
 (function() {
   // Disable setName if not supported on this platform.
   try {
@@ -461,6 +327,7 @@ foam.LIB({
     function isInstance(o) { return typeof o === 'number'; },
     function is(a, b) { return foam.Number.compare(a, b) == 0; },
     function clone(o) { return o; },
+    function isSubType(t) { return t === foam.Number; },
     function equals(a, b) { return foam.Number.compare(a, b) == 0; },
     function compare(a, b) {
       if ( ! foam.Number.isInstance(b) || ( isNaN(a) && ! isNaN(b)) ) return 1;
@@ -483,7 +350,7 @@ foam.LIB({
     })()
   ]
 });
-
+foam.DEFTYPE(foam.Number);
 
 foam.LIB({
   name: 'foam.String',
@@ -491,6 +358,7 @@ foam.LIB({
     function isInstance(o) { return typeof o === 'string'; },
     function is(a, b) { return a === b; },
     function clone(o) { return o; },
+    function isSubType(t) { return t === foam.String; },
     function equals(a, b) { return a === b; },
     function compare(a, b) {
       if ( ! foam.String.isInstance(b) ) return 1;
@@ -589,23 +457,20 @@ foam.LIB({
 
       return a.toUpperCase().startsWith(b.toUpperCase());
     },
-    (function() {
-      var map = {};
-
-      return function intern(val) {
-        /** Convert a string to an internal canonical copy. **/
-        return map[val] || (map[val] = val.toString());
-      };
-    })(),
+    function intern(val) {
+      var map = intern._map_ = intern._map_ || {};
+      return map[val] || (map[val] = val);
+    },
   ]
 });
-
+foam.DEFTYPE(foam.String);
 
 foam.LIB({
   name: 'foam.Array',
   methods: [
     function isInstance(o) { return Array.isArray(o); },
     function is(a, b) { return a === b; },
+    function isSubType(t) { return t === foam.Array; },
     function clone(o) {
       /** Returns a deep copy of this array and its contents. */
       var ret = new Array(o.length);
@@ -671,13 +536,14 @@ foam.LIB({
     }
   ]
 });
-
+foam.DEFTYPE(foam.Array);
 
 foam.LIB({
   name: 'foam.Date',
   methods: [
     function isInstance(o) { return o instanceof Date; },
     function is(a, b) { return a === b; },
+    function isSubType(t) { return t === foam.Date; },
     function clone(o) { return new Date(o); },
     function getTime(d) { return ! d ? 0 : d.getTime ? d.getTime() : d ; },
     function equals(a, b) { return this.getTime(a) === this.getTime(b); },
@@ -687,69 +553,11 @@ foam.LIB({
     },
     // Hash n & n: Truncate to 32 bits.
     function hashCode(d) { var n = d.getTime(); return n & n; },
-    function relativeDateString(date) {
-      // FUTURE: make this translatable for i18n, including plurals
-      //   "hours" vs. "hour"
-      var seconds = Math.trunc( ( Date.now() - date.getTime() ) / 1000 );
-
-      if ( seconds >= 0 && seconds < 60 ) return 'moments ago';
-      if ( seconds < 0  && seconds > -60 ) return 'in moments';
-
-      var minutes = Math.trunc((seconds) / 60);
-
-      if ( minutes === 1 ) return '1 minute ago';
-      if ( minutes === -1 ) return 'in 1 minute';
-
-      if ( minutes >= 0 && minutes < 60 ) return minutes + ' minutes ago';
-      if ( minutes < 0  && minutes > -60 ) return 'in ' + -minutes + ' minutes';
-
-      var hours = Math.trunc(minutes / 60);
-      if ( hours === 1 ) return '1 hour ago';
-      if ( hours === -1 ) return 'in 1 hour';
-
-      if ( hours >= 0 && hours < 24 ) return hours + ' hours ago';
-      if ( hours <  0 && hours > -24 ) return 'in ' + -hours + ' hours';
-
-      var days = Math.trunc(hours / 24);
-      if ( days === 1 ) return '1 day ago';
-      if ( days === -1 ) return 'in 1 day';
-
-      if ( days >= 0 && days < 7 ) return days + ' days ago';
-      if ( days <  0 && days > -7 ) return 'in ' + -days + ' days';
-
-      if ( days >= 0 && days < 365 || days < 0 && days > -365 ) {
-        var year = 1900 + date.getYear();
-        var noyear = date.toDateString().replace(' ' + year, '');
-        return noyear.substring(4);
-      }
-
-      return date.toDateString().substring(4);
-    }
   ]
 });
+foam.DEFTYPE(foam.Date);
 
-
-// An FObject is a FOAM-Object, the root class for all modeled classes.
-foam.LIB({
-  name: 'foam.core.FObject',
-  methods: [
-    // Can't be an FObject yet because we haven't built the class system yet
-    /* istanbul ignore next */
-    function isInstance(o) { return false; },
-    function clone(o)      { return o ? o.clone() : this; },
-    function is(a, b)      { return a === b; },
-    function diff(a, b)    { return a.diff(b); },
-    function equals(a, b)  { return a.equals(b); },
-    function compare(a, b) {
-      if ( ! foam.core.FObject.isInstance(b) ) return 1;
-      return a.compareTo(b);
-    },
-    function hashCode(o)   { return o.hashCode(); }
-  ]
-});
-
-
-// AN Object is a Javascript Object which is neither an FObject nor an Array.
+// An Object is a Javascript Object which is neither an FObject nor an Array.
 foam.LIB({
   name: 'foam.Object',
   methods: [
@@ -759,15 +567,16 @@ foam.LIB({
       }
     },
     function is(a, b) { return a === b; },
+    function isSubType(t) { return t === foam.Object; },
     function isInstance(o) {
-      return typeof o === 'object' && ! Array.isArray(o) &&
-          ! foam.core.FObject.isInstance(o);
+      return typeof o === 'object' &&
+        ! Array.isArray(o) &&
+        ! foam.core.FObject.isInstance(o);
     },
     function clone(o) { return o; },
     function equals(a, b) { return a === b; },
     function compare(a, b) {
-      if ( ! foam.Object.isInstance(b) ) return 1;
-      return foam.Number.compare(a.$UID, b ? b.$UID : -1);
+      return foam.Number.compare(a.$UID, b.$UID);
     },
     function hashCode(o) {
       var hash = 19;
@@ -785,54 +594,18 @@ foam.LIB({
     }
   ]
 });
+foam.DEFTYPE(foam.Object);
 
+foam.typeOf = function(o) {
+  // Classes are types
+  if ( o && o.cls_ ) return o.cls_;
 
-/**
-  Return the flyweight 'type object' for the provided object.
-  Any value is a valid argument, including null and undefined.
-*/
-foam.typeOf = (function() {
-  var tNumber    = foam.Number;
-  var tString    = foam.String;
-  var tUndefined = foam.Undefined;
-  var tNull      = foam.Null;
-  var tBoolean   = foam.Boolean;
-  var tArray     = foam.Array;
-  var tDate      = foam.Date;
-  var tFObject   = foam.core.FObject;
-  var tFunction  = foam.Function;
-  var tObject    = foam.Object;
+  for ( var i = 0 ; i < foam.__types__.length ; i++ ) {
+    if ( foam.__types__[i].isInstance(o) ) return foam.__types__[i];
+  }
 
-  return function typeOf(o) {
-    if ( tNumber.isInstance(o) )    return tNumber;
-    if ( tString.isInstance(o) )    return tString;
-    if ( tUndefined.isInstance(o) ) return tUndefined;
-    if ( tNull.isInstance(o) )      return tNull;
-    if ( tBoolean.isInstance(o) )   return tBoolean;
-    if ( tArray.isInstance(o) )     return tArray;
-    if ( tDate.isInstance(o) )      return tDate;
-    if ( tFunction.isInstance(o) )  return tFunction;
-    if ( tFObject.isInstance(o) )   return tFObject;
-    return tObject;
-  };
-})();
-
-/**
-  Defining an ordinal property to establish a precedence
-  in which items should be compared in. Items are arranged
-  by complexity of the type.
-*/
-
-foam.core.FObject.ordinal = 0;
-foam.Date.ordinal = 1;
-foam.Object.ordinal = 2;
-foam.Function.ordinal = 3;
-foam.Array.ordinal = 4;
-foam.String.ordinal = 5;
-foam.Number.ordinal = 6;
-foam.Boolean.ordinal = 7;
-foam.Null.ordinal = 8;
-foam.Undefined.ordinal = 9;
+  throw new Error('No known type for object ' + o + '.  This is a bug, contact the developers.');
+};
 
 foam.LIB({
   name: 'foam',
@@ -882,27 +655,30 @@ foam.LIB({
     methods: [
       function clone(o)      { return typeOf(o).clone(o); },
       function equals(a, b)  {
-        var typeA = typeOf(a);
-        var typeB = typeOf(b);
-        return typeA === typeB && typeA.equals(a, b);
+        var aType = typeOf(a);
+        var bType = typeOf(b);
+        return bType.isSubType(aType) && aType.equals(a, b);
       },
       function is(a, b) {
         var aType = typeOf(a);
         var bType = typeOf(b);
-        return aType === bType && aType.is(a, b);
+        return bType.isSubType(aType) && aType.is(a, b);
       },
       function compare(a, b) {
-        // To ensure that symmetry is present when comparing,
-        // we will always use the comparator of higher precedence.
         var aType = typeOf(a);
         var bType = typeOf(b);
-        return aType.ordinal > bType.ordinal ? 1 :
-            aType.ordinal < bType.ordinal ? -1 : aType.compare(a, b);
+        return bType.isSubType(aType) ?
+          aType.compare(a, b) :
+          aType.id.localeCompare(bType.id, "en");
       },
       function hashCode(o)   { return typeOf(o).hashCode(o); },
       function diff(a, b)    {
-        var t = typeOf(a);
-        return t.diff ? t.diff(a, b) : undefined;
+        var aType = typeOf(a);
+        var bType = typeOf(b);
+        return ! bType.isSubType(a) ?
+          undefined : t.diff ?
+          t.diff(a, b) :
+          undefined;
       },
       function flagFilter(flags) {
         return function(a) {

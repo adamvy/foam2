@@ -11,7 +11,7 @@ foam.CLASS({
 
   documentation: 'Converts <foam> tags in document into Views.',
 
-  imports: [ 'document', 'window', 'classloader' ],
+  imports: [ 'document', 'window' ],
 
   methods: [
     function init() {
@@ -26,35 +26,29 @@ foam.CLASS({
     },
 
     function loadTag(el) {
-      var clsName = el.getAttribute('class');
+      var cls = this.__context__.lookup(el.getAttribute('class'));
 
-      this.classloader.load(clsName).then(function(cls) {
-        var id  = el.id;
+      var id  = el.id;
 
-        var view = cls.create(null, foam.__context__);
+      var view = cls.create(null, foam.__context__);
 
-        if ( view.toE ) {
-          view = view.toE({}, foam.__context__);
-        } else if ( ! foam.u2.Element.isInstance(view) )  {
-          view = foam.u2.DetailView.create({data: view, showActions: true});
-        }
+      if ( view.toE ) {
+        view = view.toE({}, foam.__context__);
+      } else if ( ! foam.u2.Element.isInstance(view) )  {
+        view = foam.u2.DetailView.create({data: view, showActions: true});
+      }
 
-        for ( var j = 0 ; j < el.attributes.length ; j++ ) {
-          var attr = el.attributes[j];
-          var p    = this.findPropertyIC(view.cls_, attr.name);
-          if ( p ) p.set(view, attr.value);
-        }
+      for ( var j = 0 ; j < el.attributes.length ; j++ ) {
+        var attr = el.attributes[j];
+        var p    = this.findPropertyIC(view.cls_, attr.name);
+        if ( p ) p.set(view, attr.value);
+      }
 
-        el.outerHTML = view.outerHTML;
-        view.load();
+      el.outerHTML = view.outerHTML;
+      view.load();
 
-        // Store view in global variable if named. Useful for testing.
-        if ( id ) global[id] = view;
-
-      }.bind(this), function(e) {
-        console.error(e);
-        console.error('Failed to load class: ', clsName);
-      });
+      // Store view in global variable if named. Useful for testing.
+      if ( id ) global[id] = view;
     }
   ],
 
@@ -69,4 +63,10 @@ foam.CLASS({
   ]
 });
 
-foam.u2.FoamTagLoader.create();
+foam.SCRIPT({
+  flags: ['web'],
+  name: 'FoamTagLoader',
+  code: function() {
+    foam.u2.FoamTagLoader.create();
+  }
+});

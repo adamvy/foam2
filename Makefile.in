@@ -77,6 +77,7 @@ lib_JARS = nanos
 sbin_PROGRAMS = nanos
 
 foam_genjava = $(NODEJS) $(srcdir)/tools/genjava2.js
+foam_genjava = bin/foam foam.build.builder.
 
 java_dep_dir = $(builddir)/lib
 abs_java_dep_dir = $(abspath $(java_dep_dir))
@@ -145,10 +146,10 @@ $$($(1)_GEN_SRC_DIR):
 $$($(1)_BUILD_DIR):
 	$$(MKDIR_P) $$@
 
-$$($(1)_SRC_HASH): | $$($(1)_GEN_SRC_DIR)
+$$($(1)_SRC_HASH): bin/foam | $$($(1)_GEN_SRC_DIR)
 	find $$($(1)_GEN_SRC_DIR) -maxdepth 1 -type f -iname '.srchash-*' -delete
 	find $$($(1)_GEN_SRC_DIR) -type f -iname '*.java' -delete
-	$$(foam_genjava) $$($(1)_CLASSES) $$($(1)_GEN_SRC_DIR) $$($(1)_SRC_DIR)
+	bin/foam foam.build.java.Build --targetDirectory $$($(1)_GEN_SRC_DIR)
 	touch $$@
 
 .PHONY: clean-$(1)-gensrcs

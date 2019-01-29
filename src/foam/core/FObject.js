@@ -33,7 +33,9 @@ foam.LIB({
     // Each class has a prototype object which is the prototype of all
     // instances of the class. A classes prototype extends its parent
     // classes prototype.
-    prototype: {},
+    prototype: {
+      get __context__() { return foam.__context__; }
+    },
 
     // Each class has a map of Axioms added to the class.
     // Map keys are the name of the axiom.
@@ -199,9 +201,6 @@ foam.LIB({
        */
 
       if ( ! c || ! c.id ) return false;
-
-      // Optimize most common case and avoid creating cache
-      if ( this === foam.core.FObject ) return true;
 
       var cache = this.private_.isSubClassCache ||
         ( this.private_.isSubClassCache = {} );

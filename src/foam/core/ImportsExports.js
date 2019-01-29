@@ -222,7 +222,6 @@ foam.CLASS({
   ]
 });
 
-
 foam.CLASS({
   refines: 'foam.core.Model',
 

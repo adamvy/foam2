@@ -15,11 +15,13 @@ process.on('unhandledException', function(e) {
   var classFlag = false;
   var fileFlag = false;
   var javaFlag = true;
+  var swiftFlag = true;
   var debugFlag = true;
   var jsFlag = true;
   var webFlag = false;
   var classpath = [];
   var bootclasspath = '@BOOTCLASSPATH@';
+  var bootclasspathFlag = false;
   var cls;
   var file;
 
@@ -30,14 +32,22 @@ process.on('unhandledException', function(e) {
       bootclasspathFlag = true;
     } else if ( arg == '--file' ) {
       fileFlag = true;
+    } else if ( arg == '--java' ) {
+      javaFlag = true;
     } else if ( arg == '--nojava' ) {
       javaFlag = false;
-    } else if ( arg == '--nodebug' ) {
-      debugFlag = false;
     } else if ( arg == '--debug' ) {
       debugFlag = true;
+    } else if ( arg == '--nodebug' ) {
+      debugFlag = false;
     } else if ( arg == '--js' ) {
       jsFlag = true;
+    } else if ( arg == '--nojs' ) {
+      jsFlag = false;
+    } else if ( arg == '--swift' ) {
+      swiftFlag = true;
+    } else if ( arg == '--noswift' ) {
+      swiftFlag = false;
     } else if ( classpathFlag ) {
       classpath.push(arg);
       classpathFlag = false;
@@ -53,17 +63,16 @@ process.on('unhandledException', function(e) {
   }
 
   global.FOAM_FLAGS = {
-    java: javaFlag,
     debug: debugFlag,
     js: jsFlag,
-    webFlag: true,
+    java: javaFlag,
+    swift: swiftFlag
   };
 
   require(bootclasspath + 'foam.js');
 
-
   classpath.forEach(function(cp) {
-    require(cp);
+    foam.LOAD_FILES(cp);
   });
 
   cls = process.argv[i++];

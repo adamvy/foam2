@@ -125,25 +125,6 @@ foam.CLASS({
       f.toString = function() { return method.toString(); };
 
       return f;
-    },
-
-    function createChildMethod_(child) {
-      /**
-        Template method for use by Method subclasses.
-        (Used by JavaSource.)
-      */
-      return child;
-    },
-
-    function installInClass(cls, superMethod, existingMethod) {
-      var method = this;
-
-      var parent = superMethod;
-      if ( parent && foam.core.AbstractMethod.isInstance(parent) ) {
-        method = parent.createChildMethod_(method);
-      }
-
-      cls.axiomMap_[method.name] = method;
     }
   ]
 });

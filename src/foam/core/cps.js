@@ -522,6 +522,30 @@ foam.LIB({
       };
     },
 
+    function set(env, name, f) {
+      return function(then, abort, ...args) {
+        f(function(v) {
+          env[name] = v;
+          then();
+        },
+          abort, ...args);
+      };
+    },
+
+    function get(env, name) {
+      return function(then, abort) {
+        then(env[name]);
+      };
+    },
+
+    function unpack(env, ...names) {
+      return function(then, abort, ...args) {
+        names.forEach(function(a, i) {
+          env[a] = args[i];
+        });
+      };
+    },
+
     function compose(a, b) {
       if ( ! a || ! b ) throw new Error("Compose requires two functions.");
 
@@ -558,10 +582,10 @@ foam.LIB({
           if ( pending == 0 ) then();
         }
 
-        function joinAbort() {
+        function joinAbort(e) {
           if ( pending > 0 ) {
             pending = -1;
-            abort();
+            abort(e);
           }
         }
 

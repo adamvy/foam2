@@ -103,10 +103,6 @@ foam.CLASS({
       name: 'map'
     },
     {
-      class: 'foam.u2.view.TableCellFormatter',
-      name: 'tableCellFormatter'
-    },
-    {
       class: 'foam.core.Byte',
       name: 'byte'
     },

@@ -18,35 +18,23 @@
 /**
  * Top-Level of foam package
  */
-foam = {
-  isServer: typeof window === 'undefined',
-  core:     {},
-  next$UID: (function() {
-    /* Return a unique id. */
-    var id = 1;
-    return function next$UID() { return id++; };
-  })()
+foam.isServer = typeof window === 'undefined';
+foam.next$UID = (function() {
+  /* Return a unique id. */
+  var id = 1;
+  return function next$UID() { return id++; };
+})(),
+foam.isEnabled = function(flags) {
+  return ! flags ||
+    ! global.FOAM_FLAGS ||
+    ! flags.length ||
+    flags.some(function(f) { return global.FOAM_FLAGS[f]; });
 };
-
-
-/** Setup nodejs-like 'global' on web */
-if ( ! foam.isServer ) global = window;
-
-global.SUPPRESSED_WARNINGS = global.SUPPRESSED_WARNINGS || {};
-global.suppressWarnings = function (a) {
-
-  a.forEach(function(key) {
-    SUPPRESSED_WARNINGS[key] = true;
-  })
-}
-
-suppressWarnings([ `Skipping constant PARSE_JSON with unknown type.`,
-  `Property foam.core.FObjectProperty.of "value" hidden by "getter"`,
-  `Unknown property foam.nanos.menu.DAOMenu.XXXsummaryView: [object Object]`,
-  `Import "scriptDAO" already exists in ancestor class of foam.nanos.test.Test.`,
-  `Unknown property foam.core.Model.javaType: foam.core.PropertyInfo`,
-  `Property foam.dao.index.Index.nodeClass "factory" hidden by "getter"`
-]);
+foam.SCRIPT = function(m) {
+  if ( foam.isEnabled(m.flags) ) {
+    m.code();
+  }
+};
 
 Object.defineProperty(
   Object.prototype,
@@ -66,7 +54,6 @@ Object.defineProperty(
   }
 );
 
-
 /**
  * Define an assertion function that is significantly faster and more
  * compatible than console.assert.  Also allows us to turn off assertions
@@ -79,34 +66,11 @@ Object.defineProperty(
 foam.assert = function assert(cond) {
   if ( ! cond ) {
     throw new Error(Array.from(arguments).slice(1).join(' '));
-//    console.assert(false, Array.from(arguments).slice(1).join(' '));
-
   }
 
   return cond;
 };
 
-
-/**
- * Creates a small library in the foam package. A LIB is a collection of
- * constants and static methods.
- * <pre>
-foam.LIB({
-  name: 'network',
-  constants: {
-    PORT: 4000
-  },
-  methods: [ function sendPacket() { ... }  ]
-});
-</pre>
-Produces <code>foam.network</code>:
-<pre>
-console.log(foam.network.PORT); // outputs 4000
-foam.network.sendPacket();
-</pre>
- * @method LIB
- * @memberof module:foam
- */
 foam.LIB = function LIB(model) {
   var root = global;
   var path = model.name.split('.');
@@ -116,9 +80,7 @@ foam.LIB = function LIB(model) {
     root = root[path[i]] || ( root[path[i]] = {} );
   }
 
-  // During boot, keep a list of created LIBs
-  if ( global.foam.__LIBS__ ) global.foam.__LIBS__[model.name] = root;
-  if ( global.foam.__LIBS2__ ) global.foam.__LIBS2__.push(model);
+  root.id = model.name;
 
   if ( model.constants ) {
     foam.assert(
@@ -148,6 +110,6 @@ foam.LIB = function LIB(model) {
       root[name] = m.code || m;
     }
   }
+
+  return root;
 };
-global.foam.__LIBS__ = {};
-global.foam.__LIBS2__ = [];

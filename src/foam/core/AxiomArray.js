@@ -48,9 +48,10 @@ foam.CLASS({
       name: 'assertValue',
       value: function(v, prop) {
         foam.assert(Array.isArray(v),
-            'Tried to set', prop.name, 'to non array value');
+                    'Tried to set', prop.name, 'to non array value');
 
         var of = this.lookup(prop.of, true);
+
         foam.assert(
             of,
             'Unknown "of" Model in AxiomArray: property=',
@@ -60,7 +61,7 @@ foam.CLASS({
         for ( var i = 0 ; i < v.length ; i++ ) {
           foam.assert(of.isInstance(v[i]),
               'Element', i, 'of', prop.name, 'is not an instance of',
-              prop.of);
+                      prop.of, v[i]);
         }
       }
     },
