@@ -156,6 +156,8 @@ foam.LIB({
 
       for ( var i = 0 ; i < axs.length ; i++ ) {
         var a = axs[i];
+        if ( this.id === 'foam.dao.AbstractDAO' )
+          console.log("Installing", a.name, "on", this.id);
 
         var superAxiom = this.getSuperAxiomByName(a.name);
 
@@ -194,13 +196,17 @@ foam.LIB({
       return !! ( o && o.cls_ && this.isSubClass(o.cls_) );
     },
 
+    function isSubType(c) {
+      return this.isSubClass(c);
+    },
+
     function isSubClass(c) {
       /**
        * Determine if a class is either this class, a sub-class, or
        * if it implements this class (directly or indirectly).
        */
 
-      if ( ! c || ! c.id ) return false;
+      if ( ! c || ! c.id || ! c.prototype || ! c.prototype.cls_ ) return false;
 
       var cache = this.private_.isSubClassCache ||
         ( this.private_.isSubClassCache = {} );

@@ -8,27 +8,18 @@ foam.INTERFACE({
   package: 'foam.mlang.order',
   name: 'Comparator',
 
-  implements: [ 'foam.dao.SQLStatement' ],
-
-  javaExtends: [ 'java.util.Comparator' ],
-
   documentation: 'Interface for comparing two values: -1: o1 < o2, 0: o1 == o2, 1: o1 > o2.',
 
+  implements: [ 'foam.dao.SQLStatement' ],
+
+  javaImplements: [ 'java.util.Comparator' ],
+  
   methods: [
     {
       name: 'compare',
-      swiftReturns: 'Int',
-      javaReturns: 'int',
-      args: [
-        {
-          name: 'o1',
-          javaType: 'Object'
-        },
-        {
-          name: 'o2',
-          javaType: 'Object'
-        }
-      ]
+      type: 'Integer',
+      args: [ { name: 'o1', type: 'Any' },
+              { name: 'o2', type: 'Any' } ]
     }
   ]
 });

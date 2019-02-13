@@ -53,6 +53,7 @@ foam.CLASS({
 
   methods: [
     function installInClass(cls) {
+      if ( cls.id == 'foam.dao.AbstractDAO' ) console.log("Installing", this.path, "into abstractdao");
       var m = this.lookup(this.path);
       if ( ! m ) throw 'No such interface or trait: ' + this.path;
 

@@ -5,18 +5,6 @@
  */
 
 foam.CLASS({
-  refines: 'foam.core.Argument',
-  properties: [
-    {
-      class: 'String',
-      name: 'javaType',
-      factory: function() { return this.of; }
-    }
-  ]
-});
-
-
-foam.CLASS({
   refines: 'foam.core.Property',
   properties: [
     {
@@ -91,7 +79,7 @@ foam.CLASS({
       })
     },
 
-    function buildJavaClass(cls) {
+    function buildJavaClass(cls, foamClass) {
       if ( ! this.generateJava ) return;
 
       // Use javaInfoType as an indicator that this property should be
@@ -177,7 +165,7 @@ foam.CLASS({
     }
   ],
   methods: [
-    function buildJavaClass(cls) {
+    function buildJavaClass(cls, foamClass) {
       if ( this.java ) cls.implements = cls.implements.concat(this.path);
     }
   ]
@@ -197,12 +185,13 @@ foam.CLASS({
     function buildJavaClass(cls) {
       if ( ! this.generateJava ) return;
 
-      var innerClass = this.model.buildClass().buildJavaClass();
-      innerClass.innerClass = true;
-      innerClass.static = true;
-      cls.classes.push(innerClass);
+      var innerCls = this.model.buildClass();
+      var inner = innerCls.buildJavaClass();
+      inner.innerClass = true;
+      inner.static = true;
+      cls.classes.push(inner);
 
-      return innerClass;
+      return inner;
     }
   ]
 });
@@ -313,7 +302,7 @@ foam.LIB({
 
         if ( ! cls.abstract ) {
           // Apply builder pattern if more than 3 properties and not abstract.
-          foam.java.Builder.create({ properties: this.getAxiomsByClass(foam.core.Property).filter(function(p) { return p.generateJava && p.javaInfoType; }) }).buildJavaClass(cls);
+          foam.java.Builder.create({ properties: this.getAxiomsByClass(foam.core.Property).filter(function(p) { return p.generateJava && p.javaInfoType; }) }).buildJavaClass(cls, this);
         }
       }
 
@@ -333,7 +322,9 @@ foam.CLASS({
     },
     {
       class: 'String',
-      name: 'javaReturns'
+      name: 'javaType',
+      factory: function() { return this.javaReturns ||
+                            foam.java.Util.toJavaType(this.type); }
     },
     {
       class: 'Boolean',
@@ -357,13 +348,16 @@ foam.CLASS({
   ],
 
   methods: [
-    function buildJavaClass(cls) {
+    function buildJavaClass(cls, foamClass) {
       if ( ! this.javaSupport ) return;
       if ( ! this.javaCode && ! this.abstract ) return;
 
+      if ( this.name === 'select' ) {
+      }
+
       cls.method({
         name: this.name,
-        type: this.javaReturns || 'void',
+        type: this.javaType || 'void',
         visibility: 'public',
         static: this.isStatic(),
         synchronized: this.synchronized,
@@ -371,7 +365,7 @@ foam.CLASS({
         args: this.args && this.args.map(function(a) {
           return {
             name: a.name,
-            type: a.javaType
+            type: a.javaType || a.type || a.of
           };
         }),
         body: this.javaCode ? this.javaCode : ''

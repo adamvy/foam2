@@ -685,8 +685,9 @@ foam.LIB({
               array[i],
               i,
               array);
-          else
+          else {
             then(ret);
+          }
         }
 
         loop(then, abort, 0);

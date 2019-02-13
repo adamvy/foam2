@@ -142,7 +142,8 @@ foam.CLASS({
         var method = forwards[i];
         axioms.push(foam.core.ProxiedMethod.create({
           name: method.name,
-          returns: method.returns,
+          type: method.type,
+          javaType: method.javaType,
           property: name,
           args: method.args
         }));
@@ -152,7 +153,8 @@ foam.CLASS({
         var method = delegates[i];
         axioms.push(foam.core.ProxiedMethod.create({
           name: method.name,
-          returns: method.returns,
+          type: method.type,
+          javaType: method.javaType,
           property: name,
           args: method.args,
           delegate: true

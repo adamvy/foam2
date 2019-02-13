@@ -35,7 +35,7 @@ try {
 Object result = replyBox.getMessage().getObject();
 `;
 
-      if ( this.javaReturns && this.javaReturns !== 'void' ) {
+      if ( this.javaType && this.javaType !== 'void' ) {
         code += `if ( result instanceof foam.box.RPCReturnMessage )
   return (${this.javaReturns})((foam.box.RPCReturnMessage)result).getData();
 `;
@@ -48,7 +48,7 @@ if ( result instanceof foam.box.RPCErrorMessage )
   throw new RuntimeException(((foam.box.RPCErrorMessage)result).getData().toString());
 `;
 
-      if ( this.javaReturns && this.javaReturns !== 'void') {
+      if ( this.javaType && this.javaType !== 'void') {
         code += `throw new RuntimeException("Invalid response type: " + result.getClass());`;
       }
 

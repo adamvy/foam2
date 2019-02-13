@@ -43,7 +43,7 @@ SHA1 = $(SHA1_@AVAILABLE_SHA1SUM@)
 
 
 nanos_SRC_DIR = $(srcdir)/src
-nanos_CLASSES = $(srcdir)/tools/classes.js
+nanos_CLASSES = $(srcdir)/src/foam/nanos/classes.json
 
 # Format for dependencies from maven is
 # <groupId>:<artifactId>:<version>
@@ -76,8 +76,7 @@ nanos_MAVEN_DEPS = \
 lib_JARS = nanos
 sbin_PROGRAMS = nanos
 
-foam_genjava = $(NODEJS) $(srcdir)/tools/genjava2.js
-foam_genjava = bin/foam foam.build.builder.
+foam_genjava = bin/foam --classpath $(abs_top_srcdir)/src/NANOS.js foam.build.java.Build
 
 java_dep_dir = $(builddir)/lib
 abs_java_dep_dir = $(abspath $(java_dep_dir))

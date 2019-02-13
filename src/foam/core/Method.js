@@ -63,8 +63,20 @@ foam.CLASS({
     'documentation',
     'returns',
     {
-      name: 'args',
-      factory: function() { return this.code ? foam.Function.args(this.code) : []; }
+      name: 'async',
+      factory: function() { return this.returns == 'Promise'; }
+    },
+    'javaReturns',
+    {
+      name: 'type',
+      factory: function() { return this.returns; }
+    },
+    {
+      name: 'javaType',
+      factory: function() { return this.javaReturns; }
+    },
+    {
+      name: 'args'
     }
   ],
 
@@ -125,6 +137,18 @@ foam.CLASS({
       f.toString = function() { return method.toString(); };
 
       return f;
+    },
+
+    function installInClass(cls, superAxiom) {
+      if ( cls.id == 'foam.dao.AbstractDAO' ) {
+        console.log("Installing method", this.name, "into AbstractDAO");
+        console.log("Super axiom is?", superAxiom);
+      }
+
+      if ( superAxiom && ! this.hasOwnProperty('args') ) {
+        console.log("Copying args for", this.name, superAxiom.sourceCls_ && superAxiom.sourceCls_.id);
+        this.args = superAxiom.args;
+      }
     }
   ]
 });

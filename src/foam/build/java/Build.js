@@ -6,22 +6,8 @@ foam.CLASS({
   //data
   properties: [
     {
-      class: 'StringArray',
-      name: 'classes',
-      adapt: function(_, s) {
-        if ( foam.String.isInstance(s) ) {
-          return s.split(',');
-        }
-        return s;
-      }
-    },
-    {
-      class: 'StringArray',
-      name: 'skeletons',
-    },
-    {
-      class: 'StringArray',
-      name: 'proxies'
+      class: 'String',
+      name: 'configFile'
     },
     {
       class: 'String',
@@ -33,25 +19,36 @@ foam.CLASS({
       var x = this.__context__;
       var self = this;
 
+      var classes = [];
+      var proxies = [];
+      var skeletons = [];
+
+      var data = require('fs').readFileSync(this.configFile, 'utf8')
+      data = JSON.parse(data);
+
+      classes = data.classes || [];
+      proxies = data.proxies || [];
+      skeletons = data.skeletons || [];
+
       // TODO: Only UNIX paths supported.
 
       function mkdirP(then, abort, path) {
-        if ( path == '.' || path == '/' )
-          then();
-        else
-          require('fs').stat(path, function(err, stat) {
-            if ( err && err.code == 'ENOENT' )
+        require('fs').stat(path, function(err, stat) {
+          if ( err && err.code == 'ENOENT' )
+            mkdirP(function() {
               require('fs').mkdir(path, function(err) {
-                if ( err ) abort(err);
-                mkdirP(then, abort, require('path').dirname(path));
+                if ( err && err.code == 'EEXIST' ) mkdirP(then, abort, path);
+                else if ( err ) abort(err);
+                else then();
               });
-            else if ( err )
-              abort(err);
-            else if ( stat && ! stat.isDirectory )
-              abort(path + " already exists and is not a directory.");
-            else
-              mkdirP(then, abort, require('path').dirname(path));
-          });
+            }, abort, require('path').dirname(path))
+          else if ( err )
+            abort(err);
+          else if ( stat && ! stat.isDirectory() )
+            abort(path + " already exists and is not a directory.");
+          else
+            then();
+        });
       }
 
       function open(then, abort, path) {
@@ -81,48 +78,47 @@ foam.CLASS({
       }
 
       with ( foam.cps ) {
-        function generator(f) {
-          return forEach(function(then, abort, id) {
-            var path = self.targetDirectory + '/' + id.replace(/\./g, '/') + '.java';
-            var fd;
+        function generateOne(then, abort, cls) {
+          var id = cls.id;
+          var path = self.targetDirectory + '/' + id.replace(/\./g, '/') + '.java';
+          var fd;
 
-            sequence(
-              compose(mkdirP, value(require('path').dirname(path))),
-              function(then, abort) {
-                open(function(a) { fd = a; then(); }, abort, path);
-              },
-              compose(
-                function(then, abort, data) {
-                  write(then, abort, fd, data);
-                },
-                compose(generator, value(id))),
-              function(then, abort) {
-                close(then, abort, fd);
-              })(then, abort);
-          })
+          sequence(
+            function(then, abort) {
+              if ( foam.core.FObject.isSubClass(cls) &&
+                   foam.core.MultiPartID.isInstance(cls.getAxiomByName('id')) )
+                generateOne(then, abort, self.__context__.lookup(cls.id + 'Id'));
+              else
+                then();
+            },
+            compose(mkdirP, value(require('path').dirname(path))),
+            function(then, abort) {
+              open(function(a) { fd = a; then(); }, abort, path);
+            },
+            function(then, abort) {
+              write(then, abort, fd, cls.buildJavaClass().toJavaSource());
+            },
+            function(then, abort) {
+              close(then, abort, fd);
+            })(then, abort);
         }
-        var classes = generator(function(then, abort, id) {
-          then(self.__context__.lookup(id).
-               buildJavaClass().
-               toJavaSource());
-        });
 
-        var skeletons = generator(function(then, abort, id) {
-          then(foam.java.Skeleton.create({ of: self.__context__.lookup(id) }).
-               buildJavaClass().
-               toJavaSource());
-        });
+        var generateAll = forEach(generateOne);
 
-        var proxies = generator(function(then, abort, id) {
+        function getClass(then, abort, id) {
+          then(self.__context__.lookup(id));
+        }
+        function getSkeleton(then, abort, id) {
+          then(foam.java.Skeleton.create({ of: self.__context__.lookup(id) }));
+        }
+        function getProxy(then, abort, id) {
           var pkg = id.substring(0, id.lastIndexOf('.'));
           var name = id.substring(id.lastIndexOf('.') + 1);
 
           var proxyId = (pkg ? (pkg + '.') : '') + 'Proxy' + name;
 
           if ( self.__context__.lookup(proxyId, true) )
-            then(then, abort, self.__context__.lookup(proxyId).
-                 buildJavaClass().
-                 toJavaSource());
+            then(self.__context__.lookup(proxyId));
           else {
             var model = foam.core.Model.create({
               package: pkg,
@@ -132,18 +128,16 @@ foam.CLASS({
                 { class: 'Proxy', of: id, name: 'delegate' }
               ]
             });
-            then(model.buildClass().
-                 buildJavaClass().
-                 toJavaSource());
+            then(model.buildClass());
           }
-        });
+        }
 
-      parallel(
-        compose(proxies, value(this.proxies)),
-        compose(skeletons, value(this.skeletons)),
-        compose(classes, value(this.classes)))(nop, function(...args) {
-          console.log("ERROR", ...args);
-        });
+        parallel(
+          compose(generateAll, compose(map(getProxy), value(proxies))),
+          compose(generateAll, compose(map(getSkeleton), value(skeletons))),
+          compose(generateAll, compose(map(getClass), value(classes))))(nop, function(...args) {
+            console.log("ERROR", ...args);
+          });
       }
     }
   ]

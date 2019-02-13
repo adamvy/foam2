@@ -83,6 +83,7 @@ foam.FILES([
   "foam/swift/Method",
 
 
+  "foam/java/Util",
   "foam/java/Argument",
   "foam/java/Class",
   "foam/java/ClassInfo",
@@ -127,9 +128,7 @@ foam.FILES([
   "foam/version/VersionedClass",
   "foam/version/VersionedClassFactory",
   "foam/dao/Sink",
-  "foam/dao/SinkJava",
   "foam/dao/DAO",
-  "foam/dao/DAOJava",
   "foam/dao/daoUtils",
   "foam/dao/DAODecorator",
   "foam/dao/AbstractDAO",
@@ -137,10 +136,6 @@ foam.FILES([
   "foam/dao/SQLStatement",
   "foam/mlang/order/Comparator",
   "foam/mlang/mlang",
-  "foam/mlang/mlangJava",
-  "foam/swift/refines/MLang",
-  "foam/swift/refines/Predicate",
-  "foam/swift/refines/AbstractDAO",
   "foam/mlang/LabeledValue",
   "foam/dao/index/Plan",
   "foam/dao/index/Index",
@@ -447,6 +442,9 @@ foam.FILES([
   "foam/mop/MOPJava",
   "foam/dao/pg/ConnectionPool",
   "foam/lib/json/OutputterMode",
+  "foam/lib/json/OutputJSON",
+  "foam/lib/json/UnknownFObject",
+  "foam/lib/json/UnknownFObjectArray",
   "foam/lib/parse/Parser",
   "foam/lib/parse/PStream",
   "foam/crypto/hash/Hasher",
@@ -454,5 +452,6 @@ foam.FILES([
   "foam/crypto/sign/Signer",
   "foam/crypto/sign/Signable",
   "foam/crypto/sign/SignedFObject",
-  "foam/build/java/Build"
+  "foam/build/java/Build",
+  "foam/core/ContextAgent",
 ]);

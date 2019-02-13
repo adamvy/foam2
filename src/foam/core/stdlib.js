@@ -277,6 +277,17 @@ foam.LIB({
       return f;
     },
 
+    function withArgs(fn, source, opt_self) {
+      var argNames = foam.Function.argNames(fn);
+      var args = [];
+      for ( var i = 0 ; i < argNames.length ; i++ ) {
+        var a = source[argNames[i]];
+        if ( typeof a === 'function' ) a = a.bind(source);
+        args.push(a);
+      }
+      return fn.apply(opt_self || source, args);
+    },
+
     /**
      * Return a function's arguments as an array.
      * Ex. argNames(function(a,b) {...}) === ['a', 'b']

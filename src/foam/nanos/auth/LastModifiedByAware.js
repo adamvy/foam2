@@ -4,11 +4,9 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
-foam.CLASS({
+foam.INTERFACE({
   package: 'foam.nanos.auth',
   name: 'LastModifiedByAware',
-  flags: ['js'],
-
   properties: [
     {
       class: 'String',
@@ -16,5 +14,3 @@ foam.CLASS({
     }
   ]
 });
-
-// TODO: create a LastModifiedByAwareDAO

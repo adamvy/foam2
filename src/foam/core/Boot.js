@@ -243,7 +243,7 @@ foam.LIB({
     function phase3() {
       // Substitute foam.core.installModel() with simpler axiom-only version.
       foam.core.FObject.installModel = function installModel(m) {
-        if ( m.source ) m.axioms_.forEach(function(a) { a.source = m.source; });
+        if ( m.source ) m.axioms_.forEach(function(a) { a.source = m.id; });
         this.installAxioms(m.axioms_);
       };
     },

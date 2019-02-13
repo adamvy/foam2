@@ -15,22 +15,27 @@ foam.CLASS({
     {
       name: 'code',
       factory: function() {
-        var returns         = foam.String.isInstance(this.returns) ?
-            this.returns :
-            this.returns && this.returns.typeName;
+        var returns         = this.type || this.returns;
         var replyPolicyName = this.replyPolicyName;
         var boxPropName     = this.boxPropName;
         var name            = this.name;
+        var async           = this.async;
+        var type            = this.type;
 
         return function() {
           var replyBox = this.RPCReturnBox.create()
 
           var ret = replyBox.promise;
 
-          // Automatically wrap RPCs that return a "PromisedAbc" or similar
-          // TODO: Move this into RPCReturnBox ?
-          if ( returns && returns !== 'Promise' ) {
-            ret = this.lookup(returns).create({ delegate: ret });
+          var promised = foam.lookup(type, true);
+          if ( promised &&
+               promised.cls_ ) {
+            var axiom = promixed.getAxiomsByClass(foam.core.Promised)[0];
+            if ( axiom ) {
+              var promise = ret;
+              ret = promised.create();
+              ret[axiom.name] = promise;
+            }
           }
 
           var msg = this.Message.create({
@@ -114,22 +119,15 @@ foam.CLASS({
           methods ?
             methods.map(function(m) { return cls.getAxiomByName(m); }) :
           cls.getAxiomsByClass(foam.core.Method).filter(function (m) { return cls.hasOwnAxiom(m.name); }) ).
+          filter(function(m) { return m.async; }).
           map(function(m) {
-            var returns = foam.String.isInstance(m.returns) ? m.returns :
-                m.returns && m.returns.typeName;
-            if ( returns && returns !== 'Promise' ) {
-              var id = returns.split('.');
-              id[id.length - 1] = 'Promised' + id[id.length - 1];
-              returns = id.join('.');
-            }
-
             return foam.core.StubMethod.create({
               name: m.name,
               replyPolicyName: replyPolicyName,
               boxPropName: name,
-              swiftReturns: m.swiftReturns,
               args: m.args,
-              returns: returns
+              type: m.type,
+              javaType: m.javaType
             });
           });
       }

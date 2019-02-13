@@ -28,6 +28,19 @@ foam.CLASS({
     {
       name: 'type'
     },
+    {
+      name: 'of'
+    },
+    {
+      name: 'optional',
+      value: false
+    },
+    {
+      name: 'javaType',
+      factory: function() {
+        return foam.java.Util.toJavaType(this.type);
+      }
+    }
   ]
 });
 
