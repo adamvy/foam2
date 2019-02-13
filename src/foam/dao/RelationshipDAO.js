@@ -24,6 +24,7 @@ foam.CLASS({
   package: 'foam.dao',
   name: 'RelationshipDAO',
   extends: 'foam.dao.FilteredDAO',
+
   requires: [
     'foam.mlang.predicate.Eq'
   ],
@@ -42,14 +43,21 @@ foam.CLASS({
     {
       class: 'Object',
       name: 'targetProperty',
-      javaType: 'foam.core.PropertyInfo'
+      javaType: 'foam.core.PropertyInfo',
+      swiftType: 'PropertyInfo'
     },
     {
       name: 'predicate',
       factory: function() {
         return this.Eq.create({ arg1: this.targetProperty, arg2: this.sourceId });
       },
-      javaFactory: 'throw new RuntimeException("TODO");'
+      javaFactory: 'return foam.mlang.MLang.EQ(getTargetProperty(), getSourceId());',
+      swiftFactory: `
+        return Eq_create([
+          "arg1": self.targetProperty,
+          "arg2": self.sourceId
+        ])
+      `,
     },
     {
       name: 'delegate',
@@ -61,34 +69,42 @@ foam.CLASS({
 
         return delegate;
       },
-      javaFactory: 'return (foam.dao.DAO)getX().get(getTargetDAOKey());'
+      javaFactory: 'return ((foam.dao.DAO) getX().get(getTargetDAOKey())).inX(getX());',
+      swiftFactory: `return __context__[targetDAOKey] as! foam_dao_DAO`,
     }
   ],
 
   methods: [
     {
       name: 'put_',
-      javaReturns: 'foam.core.FObject',
+      type: 'FObject',
       code: function put_(x, obj) {
         return this.SUPER(x, this.adaptTarget(obj));
       },
-      javaCode: `return super.put_(x, adaptTarget(obj));`
+      javaCode: `return super.put_(x, adaptTarget(obj));`,
+      swiftCode: `return try super.put_(x, adaptTarget(obj))`
     },
     {
       name: 'adaptTarget',
-      javaReturns: 'foam.core.FObject',
+      type: 'FObject',
       args: [
         {
           name: 'target',
-          javaType: 'foam.core.FObject'
+          type: 'FObject'
         }
       ],
-      javaCode:`getTargetProperty().set(target, getSourceId());
-return target;`,
+      javaCode: `
+        getTargetProperty().set(target, getSourceId());
+        return target;
+      `,
       code: function(target) {
         this.targetProperty.set(target, this.sourceId);
         return target;
-      }
+      },
+      swiftCode: `
+        targetProperty.set(target, value: sourceId)
+        return target;
+      `,
     },
 
     function clone() {

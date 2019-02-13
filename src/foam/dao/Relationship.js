@@ -1,21 +1,5 @@
 /**
  * @license
- * Copyright 2016 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-/**
- * @license
  * Copyright 2018 The FOAM Authors. All Rights Reserved.
  * http://www.apache.org/licenses/LICENSE-2.0
  */
@@ -23,16 +7,16 @@
 foam.CLASS({
   package: 'foam.dao',
   name: 'Relationship',
-  implements: [ { path: 'foam.mlang.Expressions', java: false } ],
+  implements: [{ path: 'foam.mlang.Expressions', java: false }],
 
   documentation: 'An Axiom for defining Relationships between models.',
 
   requires: [
-    'foam.dao.RelationshipDAO',
+    'foam.dao.ManyToManyRelationshipAxiom',
     'foam.dao.ManyToManyRelationshipDAO',
+    'foam.dao.OneToManyRelationshipAxiom',
     'foam.dao.ReadOnlyDAO',
-    'foam.dao.OneToManyRelationshipProperty',
-    'foam.dao.ManyToManyRelationshipProperty'
+    'foam.dao.RelationshipDAO'
   ],
 
   properties: [
@@ -48,7 +32,8 @@ foam.CLASS({
       name: 'package',
       // Default to sourceModel's package if not specified.
       factory: function() {
-        return this.lookup(this.sourceModel).package;
+        var i = this.sourceModel.lastIndexOf('.')
+        return i == -1 ? '' : this.sourceModel.substring(0, i)
       }
     },
     {
@@ -57,8 +42,12 @@ foam.CLASS({
       transient: true,
       hidden: true,
       getter: function() {
-        return this.lookup(this.sourceModel).name +
-          this.lookup(this.targetModel).name + 'Relationship';
+        var s = this.sourceModel;
+        var t = this.targetModel;
+        return s.substring(s.lastIndexOf('.') + 1) +
+          t.substring(t.lastIndexOf('.') + 1) +
+          foam.String.capitalize(this.forwardName) +
+          'Relationship';
       }
     },
     'forwardName',
@@ -86,27 +75,35 @@ foam.CLASS({
       class: 'String',
       name: 'junctionModel',
       expression: function(sourceModel, targetModel) {
-        return ( this.package ? this.package + '.' : '' ) + this.lookup(sourceModel).name + this.lookup(targetModel).name + 'Junction'; }
+        var source = sourceModel.substring(sourceModel.lastIndexOf('.') + 1);
+        var target = targetModel.substring(targetModel.lastIndexOf('.') + 1);
+
+        return (this.package ? this.package + '.' : '') +
+          source + target + 'Junction';
+    }
     },
     {
       class: 'String',
       name: 'sourceDAOKey',
       expression: function(sourceModel) {
-        return foam.String.daoize(this.lookup(sourceModel).name);
+        var sourceName = sourceModel.substring(sourceModel.lastIndexOf('.') + 1);
+        return foam.String.daoize(sourceName);
       }
     },
     {
       class: 'String',
       name: 'targetDAOKey',
       expression: function(targetModel) {
-        return foam.String.daoize(this.lookup(targetModel).name);
+        var targetName = targetModel.substring(targetModel.lastIndexOf('.') + 1);
+        return foam.String.daoize(targetName);
       }
     },
     {
       class: 'String',
       name: 'junctionDAOKey',
       expression: function(junctionModel) {
-        return foam.String.daoize(this.lookup(junctionModel).name);
+        var junctionName = junctionModel.substring(junctionModel.lastIndexOf('.') + 1);
+        return foam.String.daoize(junctionName);
       }
     },
     {
@@ -118,8 +115,8 @@ foam.CLASS({
           target[inverseName] = source.id;
 
           return target;
+        };
         }
-      }
     },
     {
       class: 'Boolean',
@@ -131,8 +128,35 @@ foam.CLASS({
     },
     {
       class: 'Map',
+      name: 'sourceMethod'
+    },
+    {
+      class: 'Map',
       name: 'targetProperty'
     },
+    {
+      class: 'Map',
+      name: 'targetMethod'
+    },
+    {
+      class: 'Boolean',
+      name: 'sourceInitialized',
+      value: false,
+      transient: true
+    },
+    {
+      class: 'Boolean',
+      name: 'targetInitialized',
+      value: false,
+      transient: true
+    },
+    {
+      class: 'Boolean',
+      name: 'junctionInitialized',
+      value: false,
+      transient: true
+    },
+    'order'
     /* FUTURE:
     {
       name: 'deleteStrategy'
@@ -142,111 +166,121 @@ foam.CLASS({
   ],
 
   methods: [
-    function init() {
-      var sourceProp;
-      var targetProp;
-      var cardinality   = this.cardinality;
-      var forwardName   = this.forwardName;
-      var inverseName   = this.inverseName;
-      var relationship  = this;
-      var sourceModel   = this.sourceModel;
-      var targetModel   = this.targetModel;
-      var source        = foam.__context__.lookup(sourceModel);
-      var target        = foam.__context__.lookup(targetModel);
-      var sourceDAOKey  = this.sourceDAOKey;
-      var targetDAOKey  = this.targetDAOKey;
+    function initSource(x) {
+      if ( this.sourceInitialized ) return;
+      this.sourceInitialized = true;
 
-      // Add Relationship to axioms lists for each model, for reference
-      source.axiomMap_[this.id] = this;
-      // Could be related to itself, so avoid adding twice
-      if ( source !== target ) target.axiomMap_[this.id] = this;
+      var context = x || this.__context__;
 
-      if ( cardinality === '1:*' ) {
-        sourceProp = foam.dao.OneToManyRelationshipProperty.create({
-          name: forwardName,
-          target: target,
-          targetPropertyName: inverseName,
-          targetDAOKey: targetDAOKey
-        }).copyFrom(this.sourceProperty);
+      var source = context.lookup(this.sourceModel);
 
-        targetProp = foam.core.Reference.create({
-          name: inverseName,
-          of: sourceModel,
-          targetDAOKey: sourceDAOKey
-        }).copyFrom(this.targetProperty);
-      } else { /* cardinality === '*.*' */
-        var junctionModel = this.junctionModel;
-        var junction      = this.lookup(junctionModel, true);
+      // Add relationship to the axiom map so it can be found later.
+      source.installAxiom(this);
 
-        if ( ! junction ) {
-          var name = this.junctionModel.substring(
-            this.junctionModel.lastIndexOf('.') + 1);
-          var id = this.package + '.' + name;
+      var prop;
 
-          foam.CLASS({
-            package: this.package,
-            name: name,
-            ids: [ 'sourceId', 'targetId' ],
-            properties: [
-              {
-                class: 'Reference',
-                name: 'sourceId',
-                shortName: 's',
-                of: source,
-              },
-              {
-                class: 'Reference',
-                name: 'targetId',
-                shortName: 't',
-                of: target
-              }
-            ]
-          });
+      if ( this.cardinality === '1:*' ) {
+        prop = foam.dao.OneToManyRelationshipAxiom.create({
+          propertyName: this.forwardName,
+          target: this.targetModel,
+          targetPropertyName: this.inverseName,
+          targetDAOKey: this.targetDAOKey,
+          propertyOverrides: this.sourceProperty,
+          methodOverrides: this.sourceMethod,
+        });
+      } else if ( this.cardinality === '*:*' ) {
+        this.initJunction(x);
 
-          junction = this.lookup(this.junctionModel);
-        }
-
-        var junctionDAOKey = this.junctionDAOKey;
-
-        sourceProp = foam.dao.ManyToManyRelationshipProperty.create({
-          name: forwardName,
-          junction: junction,
-          junctionDAOKey: junctionDAOKey,
-          targetDAOKey: targetDAOKey,
-          targetProperty: junction.TARGET_ID,
-          sourceProperty: junction.SOURCE_ID
-        }).copyFrom(this.sourceProperty);
-
-          // Same as sourceProp except we swap target/source so that this relationship
-          // works in the opposite direction.
-        targetProp = foam.dao.ManyToManyRelationshipProperty.create({
-          name: inverseName,
-          junction: junction,
-          junctionDAOKey: junctionDAOKey,
-          targetDAOKey: sourceDAOKey,
-          targetProperty: junction.SOURCE_ID,
-          sourceProperty: junction.TARGET_ID
-        }).copyFrom(this.targetProperty);
+        prop = foam.dao.ManyToManyRelationshipAxiom.create({
+          propertyName: this.forwardName,
+          junction: this.junctionModel,
+          junctionDAOKey: this.junctionDAOKey,
+          targetDAOKey: this.targetDAOKey,
+          targetProperty: 'targetId',
+          sourceProperty: 'sourceId',
+          propertyOverrides: this.sourceProperty,
+          methodOverrides: this.sourceMethod,
+        });
+      } else {
+        foam.assert(false, 'Unknown relationship cardinality.');
       }
 
-      source.installAxiom(sourceProp);
+      source.installAxiom(prop);
+    },
+    function initTarget(x) {
+      if ( this.targetInitialized ) return;
+      this.targetInitialized = true;
 
-      if ( ! this.oneWay && ! target.getAxiomByName(targetProp.name) ) {
-        target.installAxiom(targetProp);
+      var context = x || this.__context__;
+
+      var target = context.lookup(this.targetModel);
+
+      // Add relationship to the axiom map so it can be found later.
+      target.installAxiom(this);
+
+      var prop;
+
+      if ( this.cardinality === '1:*' ) {
+        prop = foam.core.Reference.create({
+          name: this.inverseName,
+          of: this.sourceModel,
+          targetDAOKey: this.sourceDAOKey
+        }).copyFrom(this.targetProperty);
+      } else if ( this.cardinality === '*:*' ) {
+        this.initJunction(x);
+
+        // works in the opposite direction.
+        prop = foam.dao.ManyToManyRelationshipAxiom.create({
+          propertyName: this.inverseName,
+          junction: this.junctionModel,
+          junctionDAOKey: this.junctionDAOKey,
+          targetDAOKey: this.sourceDAOKey,
+          targetProperty: 'sourceId',
+          sourceProperty: 'targetId',
+          propertyOverrides: this.targetProperty,
+          methodOverrides: this.targetMethod,
+        });
+      } else {
+        foam.assert(false, 'Unknown relationship cardinality.');
       }
 
-      /*
-      if ( ! this.oneWay ) {
-        sourceProperty.preSet = function(_, newValue) {
-          if ( newValue ) {
-            for ( var i = 0 ; i < sourceProps.length ; i++ ) {
-              newValue[targetProps[i].name] = this[sourceProps[i]];
-            }
+      target.installAxiom(prop);
+    },
+    function initJunction(x) {
+      if ( this.junctionInitialized ) return;
+      this.junctionInitialized = true;
+
+      // Only need a junction class if this is a Many to Many
+      // relationship.
+      if ( this.cardinality !== '*:*' )
+        return;
+
+      // No need to register junction again.
+      if ( foam.isRegistered(this.junctionModel) )
+        return;
+
+      var name = this.junctionModel.substring(
+        this.junctionModel.lastIndexOf('.') + 1);
+
+      foam.CLASS({
+        package: this.package,
+        name: name,
+        ids: ['sourceId', 'targetId'],
+        properties: [
+          {
+            class: 'Reference',
+            name: 'sourceId',
+            shortName: 's',
+            of: this.sourceModel,
+          },
+          {
+            class: 'Reference',
+            name: 'targetId',
+            shortName: 't',
+            of: this.targetModel
           }
-          return newValue;
-        };
-      }
-      */
+        ]
+      });
     }
   ]
 });
@@ -256,12 +290,34 @@ foam.LIB({
   name: 'foam',
   methods: [
     function RELATIONSHIP(m, opt_ctx) {
-      var r = foam.dao.Relationship.create(m, opt_ctx);
+      foam.__RELATIONSHIPS__ = foam.__RELATIONSHIPS__ || [];
+      foam.__RELATIONSHIPS__.push(m);
 
-      r.validate && r.validate();
+      m.order = foam.__count++;
+
+      var r = foam.dao.Relationship.create(m, opt_ctx);
       foam.package.registerClass(r);
 
-      return r;
+      // Latch the junction right away, we have no idea when source or
+      // model will be initialized but someone may want the junction
+      // class first for some reason.
+      r.initJunction();
+
+      if ( foam.isDefined(r.sourceModel) ) r.initSource();
+      else
+        foam.pubsub.sub("defineClass", r.sourceModel, function(s) {
+          s && s.detach();
+
+          r.initSource();
+        });
+
+      if ( foam.isDefined(r.targetModel) ) r.initTarget();
+      else
+        foam.pubsub.sub("defineClass", r.targetModel, function(s) {
+          s && s.detach();
+
+          r.initTarget();
+        });
     }
   ]
 });
@@ -272,32 +328,32 @@ foam.INTERFACE({
   methods: [
     {
       name: 'add',
-      returns: 'Promise',
-      javaReturns: 'void',
+      async: true,
+      swiftThrows: true,
       args: [
-        { name: 'target', of: 'foam.core.FObject' }
+        { name: 'target', type: 'FObject' }
       ]
     },
     {
       name: 'remove',
-      returns: 'Promise',
-      javaReturns: 'void',
+      async: true,
+      swiftThrows: true,
       args: [
-        { name: 'target', of: 'foam.core.FObject' }
+        { name: 'target', type: 'FObject' }
       ]
     },
-    // TODO: These should really be properties.
+    // TODO: Make these readOnly properties when we have that support.
     {
       name: 'getDAO',
-      javaReturns: 'foam.dao.DAO'
+      type: 'foam.dao.DAO'
     },
     {
       name: 'getJunctionDAO',
-      javaReturns: 'foam.dao.DAO'
+      type: 'foam.dao.DAO'
     },
     {
       name: 'getTargetDAO',
-      javaReturns: 'foam.dao.DAO'
+      type: 'foam.dao.DAO'
     },
   ]
 });
@@ -305,7 +361,7 @@ foam.INTERFACE({
 foam.CLASS({
   package: 'foam.dao',
   name: 'ManyToManyRelationshipImpl',
-  implements: [ 'foam.dao.ManyToManyRelationship' ],
+  implements: ['foam.dao.ManyToManyRelationship'],
   properties: [
     {
       class: 'Class',
@@ -330,12 +386,14 @@ foam.CLASS({
     {
       class: 'Object',
       javaType: 'foam.core.PropertyInfo',
+      swiftType: 'PropertyInfo',
       name: 'targetProperty',
       hidden: true
     },
     {
       class: 'Object',
       javaType: 'foam.core.PropertyInfo',
+      swiftType: 'PropertyInfo',
       name: 'sourceProperty',
       hidden: true
     },
@@ -356,7 +414,15 @@ foam.CLASS({
     setRelationship(this).
     setDelegate((foam.dao.DAO)getX().get(getTargetDAOKey())).
     build()).
-  build();`
+  build();`,
+
+      swiftFactory:
+`return __context__.create(foam_dao_ReadOnlyDAO.self, args: [
+  "delegate": __context__.create(foam_dao_ManyToManyRelationshipDAO.self, args: [
+    "relationship": self,
+    "delegate": __context__[targetDAOKey]
+  ])
+])`
     },
     {
       class: 'foam.dao.DAOProperty',
@@ -365,7 +431,8 @@ foam.CLASS({
       factory: function() {
         return this.__context__[this.junctionDAOKey];
       },
-      javaFactory: 'return (foam.dao.DAO)getX().get(getJunctionDAOKey());'
+      javaFactory: 'return (foam.dao.DAO)getX().get(getJunctionDAOKey());',
+      swiftFactory: 'return __context__[junctionDAOKey] as? (foam_dao_DAO & foam_core_FObject)'
     },
     {
       class: 'foam.dao.DAOProperty',
@@ -374,34 +441,45 @@ foam.CLASS({
       factory: function() {
         return this.__context__[this.targetDAOKey];
       },
-      javaFactory: 'return (foam.dao.DAO)getX().get(getTargetDAOKey());'
+      javaFactory: 'return (foam.dao.DAO)getX().get(getTargetDAOKey());',
+      swiftFactory: 'return __context__[targetDAOKey] as? (foam_dao_DAO & foam_core_FObject)'
     }
   ],
+
   methods: [
     {
       name: 'add',
-      args: [ { name: 'target', of: 'foam.core.FObject' } ],
-      javaCode: 'getJunctionDAO().put(createJunction(((foam.core.Identifiable)target).getPrimaryKey()));',
+      args: [{ name: 'target', type: 'FObject' }],
+      javaCode: `getJunctionDAO()
+              .put_(getX(), createJunction(((foam.core.Identifiable)target)
+              .getPrimaryKey()));`,
+      swiftCode: `_ = try junctionDAO!
+              .put(createJunction((target as? foam_core_Identifiable)?
+              .getPrimaryKey()))`,
       code: function add(target) {
         return this.junctionDAO.put(this.createJunction(target.id));
       }
     },
     {
       name: 'remove',
-      javaCode: 'getJunctionDAO().put(createJunction(((foam.core.Identifiable)target).getPrimaryKey()));',
+      javaCode: `getJunctionDAO()
+              .remove_(getX(), createJunction(((foam.core.Identifiable)target)
+              .getPrimaryKey()));`,
+      swiftCode: `_ = try junctionDAO!
+              .remove(createJunction((target as? foam_core_Identifiable)?
+              .getPrimaryKey()))`,
       code: function remove(target) {
         return this.junctionDAO.remove(this.createJunction(target.id));
       }
     },
     {
       name: 'createJunction',
-      args: [ { name: 'targetId', of: 'Object' } ],
-      returns: 'foam.core.FObject',
-      javaReturns: 'foam.core.FObject',
+      args: [{ name: 'targetId', type: 'Any' }],
+      type: 'foam.core.FObject',
       code: function createJunction(targetId) {
         foam.assert( ( ! foam.Undefined.isInstance(this.sourceId) ) &&
                      ( ! foam.Undefined.isInstance(targetId) ),
-                    "Cannot create an association with an object that isn't stored in a DAO yet.");
+                    'Cannot create an association with an object that isn\'t stored in a DAO yet.');
         var junction = this.junction.create(null, this);
         this.targetProperty.set(junction, targetId);
         this.sourceProperty.set(junction, this.sourceId);
@@ -410,14 +488,27 @@ foam.CLASS({
       javaCode: `foam.core.FObject junction = (foam.core.FObject)getX().create(getJunction().getObjClass());
 getTargetProperty().set(junction, targetId);
 getSourceProperty().set(junction, getSourceId());
-return junction;
-`
+return junction;`,
+
+      swiftCode: `let junction: foam_core_FObject = self.junction.create(x: __context__) as! foam_core_FObject
+targetProperty.set(junction, value: targetId)
+sourceProperty.set(junction, value: sourceId)
+return junction`
     },
     {
-      // TODO: Should we remove this, or maybe just the java portion?
+      name: 'getJunctionDAO',
+      swiftCode: 'return junctionDAO!',
+      code: function() { return this.junctionDAO; }
+    },
+    {
+      name: 'getTargetDAO',
+      swiftCode: 'return targetDAO!',
+      code: function() { return this.targetDAO; }
+    },
+    {
       name: 'getDAO',
-      returns: 'foam.dao.DAO',
       javaCode: 'return getDao();',
+      swiftCode: 'return dao!',
       code: function getDAO() { return this.dao; }
     }
   ],
@@ -442,7 +533,10 @@ return junction;
           dao.find(id).then(function(obj) { self.add(obj); });
         });
 
-        x.stack.push({ class: 'foam.comics.DAOControllerView', data: controller });
+        x.stack.push({
+          class: 'foam.comics.DAOControllerView',
+          data: controller
+        });
       }
     },
     {
@@ -465,9 +559,78 @@ return junction;
           dao.find(id).then(function(obj) { self.remove(obj); });
         });
 
-        x.stack.push({ class: 'foam.comics.DAOControllerView', data: controller });
+        x.stack.push({
+          class: 'foam.comics.DAOControllerView',
+          data: controller
+        });
       }
     }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.dao',
+  name: 'OneToManyRelationshipAxiom',
+  requires: [
+    'foam.dao.OneToManyRelationshipMethod',
+    'foam.dao.OneToManyRelationshipProperty',
+  ],
+  properties: [
+    {
+      name: 'name',
+      expression: function(propertyName) {
+        return propertyName + 'Axiom';
+      },
+    },
+    'propertyName',
+    {
+      name: 'methodName',
+      expression: function(propertyName) {
+        return 'get' + foam.String.capitalize(propertyName);
+      },
+    },
+    ['transient', true],
+    ['tableCellFormatter', null],
+    ['cloneProperty', function() {}],
+    ['javaCloneProperty', '//noop'],
+    ['javaDiffProperty', '//noop'],
+    ['generateJava', false],
+    {
+      class: 'String',
+      name: 'targetPropertyName',
+      documentation: 'We don\'t just use targetProperty here because at the time that this axiom is created, the target property may not even be installed yet on the target.  So instead we use a combination of targetPropertyName and target class and get the actual property when needed.'
+    },
+    {
+      class: 'String',
+      name: 'target'
+    },
+    {
+      class: 'String',
+      name: 'targetDAOKey'
+    },
+    {
+      class: 'Map',
+      name: 'propertyOverrides'
+    },
+    {
+      class: 'Map',
+      name: 'methodOverrides'
+    },
+  ],
+  methods: [
+    function installInClass(cls) {
+      cls.installAxiom(this.OneToManyRelationshipMethod.create({
+        name: this.methodName,
+        target: this.target,
+        targetPropertyName: this.targetPropertyName,
+        targetDAOKey: this.targetDAOKey,
+      }).copyFrom(this.methodOverrides));
+
+      cls.installAxiom(this.OneToManyRelationshipProperty.create({
+        name: this.propertyName,
+        methodName: this.methodName,
+      }).copyFrom(this.propertyOverrides));
+    },
   ]
 });
 
@@ -476,83 +639,141 @@ foam.CLASS({
   name: 'OneToManyRelationshipProperty',
   extends: 'foam.dao.DAOProperty',
   properties: [
-    ['transient', true],
-    ['tableCellFormatter', null],
-    ['cloneProperty', function(value, map){}],
-    ['javaCloneProperty', '//noop'],
+    {
+      name: 'flags',
+      value: ['swift', 'js'],
+    },
+    {
+      name: 'methodName',
+    },
+    {
+      name: 'getter',
+      expression: function(methodName) {
+        return function() {
+          return this[methodName](this.__context__);
+        };
+      },
+    },
+    {
+      name: 'swiftGetter',
+      flags: ['swift'],
+      expression: function(methodName) {
+        return `return ${methodName}(__context__) as? (foam_dao_DAO & foam_core_FObject)`
+      },
+    },
+  ],
+});
+
+foam.CLASS({
+  package: 'foam.dao',
+  name: 'OneToManyRelationshipMethod',
+  extends: 'foam.core.Method',
+  properties: [
+    {
+      class: 'String',
+      name: 'target',
+    },
     {
       class: 'String',
       name: 'targetPropertyName',
-      documentation: "We don't just use targetProperty here because at the time that this axiom is created, the target property may not even be installed yet on the target.  So instead we use a combination of targetPropertyName and target class and get the actual property when needed."
-    },
-    {
-      class: 'Class',
-      name: 'target'
     },
     {
       class: 'String',
       name: 'targetDAOKey'
     },
     {
-      name: 'visibility',
-      value: 'EDIT_ONLY'
+      name: 'args',
+      factory: function() {
+        return [
+          {
+            name: 'x',
+            type: 'Context'
+          }
+        ];
+      },
     },
     {
-      name: 'expression',
-      factory: function() {
-        // Again, delay resolving the target property until as late as
-        // possible.  This factory gets triggered before RELATIONSHIP
-        // has a chance to install the target property.
-        var target = this.target;
-        var targetPropertyName = this.targetPropertyName;
-        var targetDAOKey = this.targetDAOKey;
-
-        return function(id) {
+      name: 'type',
+      value: 'foam.dao.DAO',
+    },
+    {
+      name: 'code',
+      expression: function(target, targetDAOKey, targetPropertyName) {
+        return function(x) {
           return foam.dao.RelationshipDAO.create({
-            sourceId: id,
-            targetProperty: target.getAxiomByName(targetPropertyName),
+            sourceId: this.id,
+            targetProperty: x.lookup(target).getAxiomByName(targetPropertyName),
             targetDAOKey: targetDAOKey
-          }, this);
+          }, x);
         }
-      }
+      },
     },
     {
-      name: 'javaFactory',
-      factory: function() {
-        return `return new foam.dao.RelationshipDAO.Builder(getX()).
-  setSourceId(getId()).
-  setTargetProperty(${this.target.id}.${foam.String.constantize(this.targetPropertyName)}).
-  setTargetDAOKey("${this.targetDAOKey}").
-  build();`;
-      }
-    }
-  ]
+      name: 'swiftCode',
+      flags: ['swift'],
+      expression: function(target, targetPropertyName, targetDAOKey) {
+        return `
+          return x.create(foam_dao_RelationshipDAO.self, args: [
+            "sourceId": self.id,
+            "targetProperty": ${foam.swift.toSwiftName(target)}.${foam.String.constantize(targetPropertyName)}(),
+            "targetDAOKey": "${targetDAOKey}",
+          ])!;
+        `
+      },
+    },
+    {
+      name: 'javaCode',
+      expression: function(target, targetPropertyName, targetDAOKey) {
+        return `
+          return new foam.dao.RelationshipDAO.Builder(x)
+              .setSourceId(getId())
+              .setTargetProperty(${target}.${foam.String.constantize(targetPropertyName)})
+              .setTargetDAOKey("${targetDAOKey}")
+              .build();
+        `
+      },
+    },
+  ],
 });
 
 foam.CLASS({
   package: 'foam.dao',
-  name: 'ManyToManyRelationshipProperty',
-  extends: 'foam.core.FObjectProperty',
+  name: 'ManyToManyRelationshipAxiom',
+  requires: [
+    'foam.dao.ManyToManyRelationshipProperty',
+    'foam.dao.ManyToManyRelationshipMethod',
+  ],
   properties: [
+    {
+      name: 'name',
+      expression: function(propertyName) {
+        return propertyName + 'Axiom';
+      },
+    },
+    'propertyName',
+    {
+      name: 'methodName',
+      expression: function(propertyName) {
+        return 'get' + foam.String.capitalize(propertyName);
+      },
+    },
     ['of', 'foam.dao.ManyToManyRelationship'],
     ['transient', true],
+    ['javaInfoType', 'foam.core.AbstractFObjectRelationshipPropertyInfo'],
     ['tableCellFormatter', null],
-    ['cloneProperty', function(value, map) {}],
+    ['cloneProperty', function() {}],
     ['javaCloneProperty', '//noop'],
-    ['view', { class: 'foam.u2.DetailView', showActions: true } ],
+    ['javaDiffProperty', '//noop'],
+    ['generateJava', false],
+    ['view', { class: 'foam.u2.DetailView', showActions: true }],
     {
-      class: 'Class',
+      class: 'String',
       name: 'junction'
     },
     {
-      name: 'visibility',
-      value: 'EDIT_ONLY'
+      class: 'String',
+      name: 'sourceProperty',
     },
-    {
-      class: 'Class',
-      name: 'target'
-    },
-    'sourceProperty',
     {
       class: 'String',
       name: 'junctionDAOKey'
@@ -561,41 +782,171 @@ foam.CLASS({
       class: 'String',
       name: 'targetDAOKey'
     },
-    'targetProperty',
     {
-      name: 'expression',
-      factory: function() {
-        var sourceProperty = this.sourceProperty;
-        var targetProperty = this.targetProperty;
-        var targetDAOKey = this.targetDAOKey;
-        var junctionDAOKey = this.junctionDAOKey;
-        var junction = this.junction;
-
-        return function(id) {
-          return foam.dao.ManyToManyRelationshipImpl.create({
-            sourceId: id,
-            sourceProperty: sourceProperty,
-            targetProperty: targetProperty,
-            targetDAOKey: targetDAOKey,
-            junctionDAOKey: junctionDAOKey,
-            junction: junction
-          }, this);
-        };
-      }
+      class: 'String',
+      name: 'targetProperty'
     },
     {
-      name: 'javaFactory',
-      factory: function() {
-        return `return new foam.dao.ManyToManyRelationshipImpl.Builder(getX()).
-  setSourceId(getId()).
-  setSourceProperty(${this.sourceProperty.forClass_}.${foam.String.constantize(this.sourceProperty.name)}).
-  setTargetProperty(${this.targetProperty.forClass_}.${foam.String.constantize(this.targetProperty.name)}).
-  setTargetDAOKey("${this.targetDAOKey}").
-  setJunctionDAOKey("${this.junctionDAOKey}").
-  setJunction(${this.junction.id}.getOwnClassInfo()).
-  build();
-`;
-      }
-    }
+      class: 'Map',
+      name: 'propertyOverrides'
+    },
+    {
+      class: 'Map',
+      name: 'methodOverrides'
+    },
+  ],
+
+  methods: [
+    function installInClass(cls) {
+      cls.installAxiom(this.ManyToManyRelationshipMethod.create({
+        sourceProperty: this.sourceProperty,
+        targetProperty: this.targetProperty,
+        targetDAOKey: this.targetDAOKey,
+        junctionDAOKey: this.junctionDAOKey,
+        junction: this.junction,
+        name: this.methodName,
+      }).copyFrom(this.methodOverrides));
+      cls.installAxiom(this.ManyToManyRelationshipProperty.create({
+        name: this.propertyName,
+        methodName: this.methodName,
+      }).copyFrom(this.propertyOverrides));
+    },
   ]
+});
+
+foam.CLASS({
+  package: 'foam.dao',
+  name: 'ManyToManyRelationshipMethod',
+  extends: 'foam.core.Method',
+  properties: [
+    {
+      class: 'String',
+      name: 'sourceProperty'
+    },
+    {
+      class: 'String',
+      name: 'targetProperty'
+    },
+    {
+      class: 'String',
+      name: 'targetDAOKey'
+    },
+    {
+      class: 'String',
+      name: 'junctionDAOKey'
+    },
+    {
+      class: 'String',
+      name: 'junction'
+    },
+    {
+      name: 'args',
+      factory: function() {
+        return [
+          {
+            name: 'x',
+            type: 'Context'
+          }
+        ];
+      },
+    },
+    {
+      name: 'type',
+      value: 'foam.dao.ManyToManyRelationship',
+    },
+    {
+      name: 'code',
+      factory: function() {
+        var self = this;
+        return function(x) {
+          return foam.dao.ManyToManyRelationshipImpl.create({
+            sourceId: this.id,
+            sourceProperty: self.sourceProperty,
+            targetProperty: self.targetProperty,
+            targetDAOKey: self.targetDAOKey,
+            junctionDAOKey: self.junctionDAOKey,
+            junction: self.junction
+          }, x);
+        }
+      },
+    },
+    {
+      name: 'swiftCode',
+      flags: ['swift'],
+      expression: function(junction, sourceProperty, targetProperty, targetDAOKey, junctionDAOKey) {
+        return `
+          return x.create(foam_dao_ManyToManyRelationshipImpl.self, args: [
+            "sourceId": self.id,
+            "sourceProperty": ${foam.swift.toSwiftName(junction)}.${foam.String.constantize(sourceProperty)}(),
+            "targetProperty": ${foam.swift.toSwiftName(junction)}.${foam.String.constantize(targetProperty)}(),
+            "targetDAOKey": "${targetDAOKey}",
+            "junctionDAOKey": "${junctionDAOKey}",
+            "junction": ${foam.swift.toSwiftName(junction)}.classInfo()
+          ])!;
+        `
+      },
+    },
+    {
+      name: 'javaCode',
+      expression: function(junction, sourceProperty, targetProperty, targetDAOKey, junctionDAOKey) {
+        return `
+          return new foam.dao.ManyToManyRelationshipImpl.Builder(x)
+              .setSourceId(getId())
+              .setSourceProperty(${junction}.${foam.String.constantize(sourceProperty)})
+              .setTargetProperty(${junction}.${foam.String.constantize(targetProperty)})
+              .setTargetDAOKey("${targetDAOKey}")
+              .setJunctionDAOKey("${junctionDAOKey}")
+              .setJunction(${junction}.getOwnClassInfo())
+              .build();
+        `
+      },
+    },
+  ],
+});
+
+foam.CLASS({
+  package: 'foam.dao',
+  name: 'ManyToManyRelationshipProperty',
+  extends: 'FObjectProperty',
+  properties: [
+    {
+      name: 'flags',
+      value: ['swift', 'js'],
+    },
+    {
+      name: 'of',
+      value: 'foam.dao.ManyToManyRelationship',
+    },
+    {
+      name: 'transient',
+      value: true,
+    },
+    {
+      name: 'methodName',
+    },
+    {
+      name: 'getter',
+      expression: function(methodName) {
+        return function() {
+          return this[methodName](this.__context__);
+        };
+      },
+    },
+    {
+      name: 'setter',
+      value: function() {},
+    },
+    {
+      name: 'swiftGetter',
+      flags: ['swift'],
+      expression: function(methodName) {
+        return `return ${methodName}(__context__)`
+      },
+    },
+    {
+      name: 'swiftSetter',
+      flags: ['swift'],
+      value: '// NOOP',
+    },
+  ],
 });

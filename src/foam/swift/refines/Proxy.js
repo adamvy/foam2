@@ -5,7 +5,10 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ProxiedMethodSwiftRefinement',
   refines: 'foam.core.ProxiedMethod',
+  flags: ['swift'],
   properties: [
     {
       name: 'swiftCode',
@@ -13,8 +16,8 @@ foam.CLASS({
         var args = this.swiftArgs.map(function(arg) {
           return arg.localName;
         });
-        return (this.swiftReturns ? 'return ' : '') +
-          (this.swiftThrows ? 'try ' : '') + 
+        return (this.swiftType ? 'return ' : '') +
+          (this.swiftThrows ? 'try ' : '') +
           this.property + '.' + this.swiftName + '(' + args.join(', ') + ')';
       }
     }
@@ -22,30 +25,34 @@ foam.CLASS({
 });
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ProxySwiftRefinement',
   refines: 'foam.core.Proxy',
+  flags: ['swift'],
   properties: [
     {
-      name: 'swiftType',
-      expression: function(of) {
-        return foam.lookup(of).model_.swiftName;
-      }
+      name: 'swiftOptional',
+      value: false,
     }
   ]
 });
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ProxySubSwiftRefinement',
   refines: 'foam.core.ProxySub',
+  flags: ['swift'],
   methods: [
-    function writeToSwiftClass(cls, superAxiom, parentCls) {
+    function writeToSwiftClass(cls) {
       return
       cls.fields.push(
         foam.swift.Field.create({
           name: `${this.prop}EventProxy_`,
           visibility: 'private',
-          type: 'EventProxy',
+          type: foam.core.EventProxy.model_.swiftName,
           lazy: true,
           initializer: `
-return __context__.create(EventProxy.self, args: [
+return __context__.create(foam_core_EventProxy.self, args: [
   "dest": self,
   "src": ${this.prop},
 ])!

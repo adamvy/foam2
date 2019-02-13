@@ -12,14 +12,20 @@ foam.INTERFACE({
 
   methods: [
     {
+      name: 'includeInSignature',
+      type: 'Boolean',
+      documentation: 'Flag to determine if we should include this property as part of the signature'
+    },
+    {
       name: 'updateSignature',
+      type: 'Void',
       javaThrows: [
         'java.security.SignatureException'
       ],
       args: [
         {
           name: 'obj',
-          javaType: 'foam.core.FObject'
+          type: 'FObject'
         },
         {
           name: 'sig',

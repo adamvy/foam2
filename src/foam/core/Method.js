@@ -61,22 +61,27 @@ foam.CLASS({
     { name: 'name', required: true },
     { name: 'code', required: false },
     'documentation',
-    'returns',
-    {
-      name: 'async',
-      factory: function() { return this.returns == 'Promise'; }
-    },
-    'javaReturns',
+    'flags',
     {
       name: 'type',
-      factory: function() { return this.returns; }
+      value: 'Void'
     },
     {
-      name: 'javaType',
-      factory: function() { return this.javaReturns; }
+      class: 'Boolean',
+      name: 'async',
     },
     {
-      name: 'args'
+      name: 'args',
+      factory: function() {
+        if ( this.code )
+          try {
+            var bd = foam.Function.breakdown(this.code);
+            return bd.args;
+          } catch(e) {
+            console.warn('Unable to parse args:', e);
+          }
+        return [];
+      }
     }
   ],
 
@@ -86,7 +91,13 @@ foam.CLASS({
       method it overrides with this.SUPER().
     */
     function override_(proto, method, superMethod) {
-      if ( ! method ) return;
+      if ( ! method ) {
+        if ( this.name == 'toDisjunctiveNormalForm' ) {
+          console.warn('Method code missing for', this.name);
+          debugger;
+        }
+        return;
+      }
 
       // Not using SUPER, so just return original method
       if ( method.toString().indexOf('SUPER') == -1 ) return method;
@@ -139,16 +150,20 @@ foam.CLASS({
       return f;
     },
 
-    function installInClass(cls, superAxiom) {
-      if ( cls.id == 'foam.dao.AbstractDAO' ) {
-        console.log("Installing method", this.name, "into AbstractDAO");
-        console.log("Super axiom is?", superAxiom);
+    function createChildMethod_(child) {
+      // Overwritten after foam.core.Argument is created.
+      return child;
+    },
+
+    function installInClass(cls, superMethod, existingMethod) {
+      var method = this;
+
+      var parent = superMethod;
+      if ( parent && foam.core.AbstractMethod.isInstance(parent) ) {
+        method = parent.createChildMethod_(method);
       }
 
-      if ( superAxiom && ! this.hasOwnProperty('args') ) {
-        console.log("Copying args for", this.name, superAxiom.sourceCls_ && superAxiom.sourceCls_.id);
-        this.args = superAxiom.args;
-      }
+      cls.axiomMap_[method.name] = method;
     }
   ]
 });
@@ -172,5 +187,10 @@ foam.CLASS({
   ]
 });
 
-
-foam.boot.phase2();
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'BootPhase2',
+  code: function() {
+    foam.boot.phase2();
+  }
+});

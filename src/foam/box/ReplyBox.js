@@ -24,7 +24,7 @@ foam.CLASS({
     {
       name: 'registry',
       key: 'registry',
-      javaType: 'foam.box.BoxRegistry'
+      type: 'foam.box.BoxRegistry'
     }
   ],
 
@@ -54,12 +54,12 @@ foam.CLASS({
         this.delegate.send(msg);
       },
       swiftCode: function() {/*
-(registry as! BoxRegistry).unregister(id)
+(registry as! foam_box_BoxRegistry).unregister(id)
 try delegate.send(msg)
       */},
       javaCode: `
 getRegistry().unregister(getId());
-getDelegate().send(message);
+getDelegate().send(msg);
 `
     }
   ]

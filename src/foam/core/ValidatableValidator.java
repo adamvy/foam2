@@ -6,8 +6,6 @@
 
 package foam.core;
 
-import foam.core.*;
-
 public class ValidatableValidator
   implements Validator
 {
@@ -22,7 +20,9 @@ public class ValidatableValidator
 
   private ValidatableValidator() {}
 
-  public void validate(FObject obj) throws IllegalStateException {
-    ((Validatable)obj).validate();
+  public void validate(X x, FObject obj) throws IllegalStateException {
+    if ( obj instanceof Validatable ) {
+      ((Validatable) obj).validate(x);
+    }
   }
 }

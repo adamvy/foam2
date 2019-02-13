@@ -34,6 +34,7 @@ foam.LIB({
     // instances of the class. A classes prototype extends its parent
     // classes prototype.
     prototype: {
+      // Bootstrap context getter, upgraded in EndBoot.js
       get __context__() { return foam.__context__; }
     },
 
@@ -50,6 +51,31 @@ foam.LIB({
   },
 
   methods: [
+    // Flyweight methods to match interface of flyweight types in FObject.
+    function is(a, b) {
+      return a === b;
+    },
+
+    function isSubType(t) {
+      return this.isSubClass(c);
+    },
+
+    function clone(o) {
+      return o.clone();
+    },
+
+    function equals(a, b) {
+      return a.equals(b);
+    },
+
+    function compare(a, b) {
+      return a.compareTo(b);
+    },
+
+    function hashCode(o) {
+      return o.hashCode();
+    },
+
     function create(args, opt_parent) {
       /**
        * Create a new instance of this class.
@@ -156,8 +182,6 @@ foam.LIB({
 
       for ( var i = 0 ; i < axs.length ; i++ ) {
         var a = axs[i];
-        if ( this.id === 'foam.dao.AbstractDAO' )
-          console.log("Installing", a.name, "on", this.id);
 
         var superAxiom = this.getSuperAxiomByName(a.name);
 
@@ -196,10 +220,6 @@ foam.LIB({
       return !! ( o && o.cls_ && this.isSubClass(o.cls_) );
     },
 
-    function isSubType(c) {
-      return this.isSubClass(c);
-    },
-
     function isSubClass(c) {
       /**
        * Determine if a class is either this class, a sub-class, or
@@ -207,6 +227,12 @@ foam.LIB({
        */
 
       if ( ! c || ! c.id || ! c.prototype || ! c.prototype.cls_ ) return false;
+
+      // This optimization means we can't use foam.core.isSubClass() to check
+      // if an object is a class or not.
+
+      // Optimize most common case and avoid creating cache
+      // if ( this === foam.core.FObject ) return true;
 
       var cache = this.private_.isSubClassCache ||
         ( this.private_.isSubClassCache = {} );
@@ -504,25 +530,6 @@ foam.CLASS({
       }
     },
 
-
-    /************************************************
-     * Console
-     ************************************************/
-
-    // Imports aren't implemented yet, so mimic:
-    //   imports: [ 'lookup', 'assert', 'error', 'log', 'warn' ],
-
-
-    // Bootstrap form replaced after this.__context__ is added.
-    function lookup() { return foam.lookup.apply(foam, arguments); },
-
-    function error() { this.__context__.error.apply(null, arguments); },
-
-    function log() { this.__context__.log.apply(null, arguments); },
-
-    function warn() { this.__context__.warn.apply(null, arguments); },
-
-
     /************************************************
      * Publish and Subscribe
      ************************************************/
@@ -602,7 +609,9 @@ foam.CLASS({
             case 9: l(s, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8]); break;
             default: l.apply(l, [s].concat(Array.from(a)));
           }
-        } catch (x) {}
+        } catch (x) {
+          if ( foam._IS_DEBUG_ ) console.warn("Listener threw exception", x);
+        }
         count++;
       }
       return count;

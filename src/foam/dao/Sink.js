@@ -85,7 +85,6 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.dao',
   name: 'AbstractSink',
-  abstract: true,
   implements: [ 'foam.dao.Sink' ],
 
   documentation: 'Abstract base class for implementing Sink interface.',

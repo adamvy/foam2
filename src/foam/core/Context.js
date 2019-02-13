@@ -15,6 +15,14 @@
  * limitations under the License.
  */
 
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'ContextScript',
+  requires: [
+    'foam.core.ConstantSlot',
+  ],
+  code: function() {
+
 /**
  * Context Support
  *
@@ -66,6 +74,10 @@
         typeof cls === 'object',
         'Cannot register non-objects into a context.');
 
+      // Top level context also registers classes globally.
+      if ( this === foam.__context__ )
+        foam.package.registerClass(cls);
+
       if ( opt_id ) {
         this.registerInCache_(cls, this.__cache__, opt_id);
       } else {
@@ -91,6 +103,10 @@
         typeof m.id === 'string',
         'Must have an .id property to be registered in a context.');
 
+      // top level context registers classes globally
+      if ( this === foam.__context__ )
+        foam.package.registerClassFactory(m, factory);
+
       this.registerInCache_(factory, this.__cache__, m.id);
 
       if ( m.package === 'foam.core' ) {
@@ -99,10 +115,19 @@
     },
 
     /**
-     * Returns true if the model ID has been registered. False otherwise.
+     * Returns true if the ID has been registered. False otherwise.
      */
-    isRegistered: function(modelId) {
-      return !! this.__cache__[modelId];
+    isRegistered: function(id) {
+      return !! this.__cache__[id];
+    },
+
+    /**
+     * Returns true if the given ID has been registered in the context, and isn't
+     * registered as a factory.
+     */
+    isDefined: function(id) {
+      return !! this.__cache__[id] &&
+        ! foam.Function.isInstance(this.__cache__[id]);
     },
 
     /** Internal method to register a context binding in an internal cache */
@@ -203,6 +228,15 @@
   foam.createSubContext = function(opt_args, opt_name) {
     return foam.__context__.createSubContext(opt_args, opt_name);
   };
+  foam.isRegistered = function(id) {
+    return foam.__context__.isRegistered(id);
+  };
+  foam.isDefined = function(id) {
+    return foam.__context__.isDefined(id);
+  };
 
   foam.__context__ = __context__;
 })();
+
+  }
+});

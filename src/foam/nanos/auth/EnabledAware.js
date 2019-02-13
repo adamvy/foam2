@@ -11,20 +11,32 @@ foam.INTERFACE({
   methods: [
     {
       name: 'getEnabled',
-      returns: 'Boolean',
-      javaReturns: 'boolean',
-      swiftReturns: 'Bool'
+      type: 'Boolean'
     },
     {
       name: 'setEnabled',
       args: [
         {
-          class: 'Boolean',
           name: 'value',
-          javaType: 'boolean',
-          swiftType: 'Bool'
+          type: 'Boolean'
         }
       ]
+    }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.nanos.auth',
+  name: 'EnabledAwareDummy',
+
+  properties: [
+    {
+      class: 'Long',
+      name: 'id'
+    },
+    {
+      class: 'Boolean',
+      name: 'enabled'
     }
   ]
 });

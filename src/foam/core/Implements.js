@@ -48,13 +48,13 @@ foam.CLASS({
       name: 'name',
       getter: function() { return 'implements_' + this.path; }
     },
+    'flags',
     'path'
   ],
 
   methods: [
     function installInClass(cls) {
-      if ( cls.id == 'foam.dao.AbstractDAO' ) console.log("Installing", this.path, "into abstractdao");
-      var m = this.lookup(this.path);
+      var m = this.__context__.lookup(this.path);
       if ( ! m ) throw 'No such interface or trait: ' + this.path;
 
       // TODO: clone these axioms since they could be reused and then would
@@ -91,6 +91,8 @@ foam.CLASS({
 
 foam.CLASS({
   refines: 'foam.core.Model',
+  package: 'foam.core',
+  name: 'ImplementsModelRefine',
   properties: [
     {
       class: 'AxiomArray',

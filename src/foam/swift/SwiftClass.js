@@ -64,14 +64,19 @@ foam.CLASS({
 
   methods: [
     function method(m) {
+      if ( ! foam.core.FObject.isInstance(m) ) m = this.Method.create(m)
       this.methods.push(m);
       return this;
     },
     function getMethod(name) {
-      var m = this.methods.find(function(m) {
+      return this.methods.find(function(m) {
         return m.name === name;
       });
-      return m;
+    },
+    function getClass(name) {
+      return this.classes.find(function(m) {
+        return m.name === name;
+      });
     },
     function field(f) {
       this.fields.push(f);

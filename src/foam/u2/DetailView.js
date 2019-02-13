@@ -28,7 +28,8 @@ foam.CLASS({
   ],
 
   exports: [
-    'currentData as data'
+    'currentData as data',
+    'controllerMode'
   ],
 
   axioms: [
@@ -47,6 +48,9 @@ foam.CLASS({
           this.currentData = data;
         }
         return data;
+      },
+      factory: function() {
+        return this.of && this.of.create();
       }
     },
     'currentData',

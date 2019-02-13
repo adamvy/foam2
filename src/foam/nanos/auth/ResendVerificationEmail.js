@@ -15,11 +15,13 @@ foam.CLASS({
   ],
 
   imports: [
+    'auth',
     'emailToken',
+    'stack',
     'user'
   ],
 
-  css:`
+  css: `
     ^{
       width: 490px;
       margin: auto;
@@ -41,7 +43,10 @@ foam.CLASS({
       margin-top: 35px;
       outline: none;
     }
-
+    ^ .net-nanopay-ui-ActionView-goBack {
+      background: none;
+      color: #59a5d5;
+    }
   `,
 
   properties: [
@@ -52,7 +57,7 @@ foam.CLASS({
   ],
 
   messages: [
-    { name: 'Title', message: "You're almost there..." },
+    { name: 'Title', message: 'You\'re almost there...' },
     { name: 'Instructions1', message: 'We have sent you an email.' },
     { name: 'Instructions2', message: 'Please go to your inbox to confirm your email address.' },
     { name: 'Instructions3', message: 'Your email address needs to be verified before getting started.' }
@@ -61,8 +66,6 @@ foam.CLASS({
   methods: [
     function initE() {
       this.SUPER();
-      var self = this;
-
       this
         .addClass(this.myClass())
         .start()
@@ -74,6 +77,7 @@ foam.CLASS({
             .start().add(this.Instructions3).end()
             .start(this.RESEND_EMAIL).end()
           .end()
+          .start(this.GO_BACK).end()
         .end();
     }
   ],
@@ -85,16 +89,25 @@ foam.CLASS({
       code: function(X) {
         var self = this;
 
-        this.emailToken.generateToken(this.user).then(function (result) {
+        this.emailToken.generateToken(null, this.user).then(function(result) {
           if ( ! result ) {
             throw new Error('Error generating reset token');
           }
           self.add(self.NotificationMessage.create({ message: 'Verification email sent to ' + self.user.email }));
-        }).catch(function (err) {
+        }).catch(function(err) {
           self.add(self.NotificationMessage.create({ message: err.message, type: 'error' }));
+        });
+      }
+    },
+    {
+      name: 'goBack',
+      label: 'Go to sign in page.',
+      code: function(X) {
+        this.auth.logout().then(function() {
+          this.window.location.hash = '';
+          this.window.location.reload();
         });
       }
     }
   ]
-
 });

@@ -22,43 +22,61 @@ foam.CLASS({
 
   documentation: 'View for one row/property of a DetailView.',
 
+  imports: [
+    'auth'
+  ],
+
   properties: [
     'prop',
-    [ 'nodeName', 'tr' ]
+    [ 'nodeName', 'tr' ],
+    {
+      name: 'label',
+      factory: function() { return this.prop.label }
+    }
   ],
 
-  axioms: [
-    foam.u2.CSS.create({code: `
-      .foam-u2-PropertyView-label {
-        color: #444;
-        display: block;
-        float: left;
-        font-size: 13px;
-        padding: 4px 8px 4px 8px;
-        text-align: left;
-        vertical-align: top;
-        white-space: nowrap;
-      }
-      .foam-u2-PropertyView-view {
-        padding: 2px 8px 2px 6px;
-      }
-      .foam-u2-PropertyView-units  {
-        color: #444;
-        font-size: 12px;
-        padding: 4px;
-        text-align: right;
-      }
-    `})
-  ],
+  css: `
+    .foam-u2-PropertyView-label {
+      color: #444;
+      display: block;
+      float: left;
+      font-size: 13px;
+      padding: 4px 8px 4px 8px;
+      text-align: left;
+      vertical-align: top;
+      white-space: nowrap;
+    }
+    .foam-u2-PropertyView-view {
+      padding: 2px 8px 2px 6px;
+    }
+    .foam-u2-PropertyView-units  {
+      color: #444;
+      font-size: 12px;
+      padding: 4px;
+      text-align: right;
+    }
+  `,
 
   methods: [
-    function initE() {
+    async function initE() {
       var prop = this.prop;
 
-      // TODO: hide this element if the prop changes it's mode to HIDDEN.
+      if ( prop && prop.permissionRequired )  {
+        var propName = prop.name.toLowerCase();
+        var clsName = prop.forClass_;
+        clsName = clsName.substring(clsName.lastIndexOf('.') + 1).toLowerCase();
+        var writePerm = await this.auth.check(null, `${clsName}.rw.${propName}`);
+        if ( ! writePerm ) {
+          var readPerm = await this.auth.check(null, `${clsName}.ro.${propName}`);
+          prop.visibility = readPerm ? foam.u2.Visibility.RO : foam.u2.Visibility.HIDDEN;
+        }
+      }
+
+      // TODO: hide this element if the prop changes its mode to HIDDEN.
       this.
         addClass('foam-u2-PropertyView').
-        start('td').addClass('foam-u2-PropertyView-label').add(prop.label).end().
+        addClass('foam-u2-PropertyView-' + prop.name).
+        start('td').addClass('foam-u2-PropertyView-label').add(this.label).end().
         start('td').addClass('foam-u2-PropertyView-view').add(
           prop,
           prop.units && this.E('span').addClass('foam-u2-PropertyView-units').add(' ', prop.units)).

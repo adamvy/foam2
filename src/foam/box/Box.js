@@ -22,10 +22,12 @@ foam.INTERFACE({
   methods: [
     {
       name: 'send',
+      async: true,
+      type: 'Void',
       args: [
         {
           name: 'msg',
-          swiftType: 'Message'
+          type: 'foam.box.Message'
         }
       ],
       swiftThrows: true,

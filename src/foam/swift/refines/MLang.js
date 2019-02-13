@@ -5,25 +5,16 @@
  */
 
 foam.CLASS({
-  refines: 'foam.mlang.AbstractExpr',
-  methods: [
-    function f() {}
-  ]
-});
-
-foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ExprPropertySwiftRefinement',
   refines: 'foam.mlang.ExprProperty',
+  flags: ['swift'],
   properties: [
-    {
-      name: 'swiftType',
-      value: 'Any',
-    },
     {
       name: 'swiftAdapt',
       value: `
-if let newValue = newValue as? FObject { return newValue }
-if let newValue = newValue as? PropertyInfo { return newValue }
-return Context.GLOBAL.create(Constant.self, args: ["value": newValue])!
+if let newValue = newValue as? foam_mlang_Expr { return newValue }
+return Context.GLOBAL.create(foam_mlang_Constant.self, args: ["value": newValue])!
       `,
     },
   ],

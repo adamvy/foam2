@@ -8,7 +8,6 @@ foam.CLASS({
   package: 'foam.nanos.pm',
   name: 'PMTableView',
   extends: 'foam.u2.view.TableView',
-  flags: [ 'web' ],
 
   documentation: 'TableView for displaying PMInfos.',
 
@@ -66,7 +65,7 @@ foam.CLASS({
       isFramed: true,
       code: function() {
         var self = this;
-        this.data.select(this.MAX(this.PMInfo.TOTALTIME)).then(function(max) {
+        this.data.select(this.MAX(this.PMInfo.TOTAL_TIME)).then(function(max) {
           self.maxTotalTime = max.value;
         });
       }

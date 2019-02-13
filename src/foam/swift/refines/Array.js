@@ -5,7 +5,10 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ArraySwiftRefinement',
   refines: 'foam.core.Array',
+  flags: ['swift'],
   properties: [
     {
       name: 'swiftType',

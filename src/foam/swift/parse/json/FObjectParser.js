@@ -37,10 +37,10 @@ return
   methods: [
     {
       name: 'parseString',
-      swiftReturns: 'FObject?',
+      swiftType: 'foam_core_FObject?',
       args: [
         {
-          swiftType: 'String',
+          type: 'String',
           name: 'str',
         },
         {
@@ -53,7 +53,7 @@ return
 let ps = StringPStream_create(["str": str])
 let parserContext = ParserContext()
 parserContext.set("X", x ?? __subContext__)
-return parse(ps, parserContext)?.value() as? FObject
+return parse(ps, parserContext)?.value() as? foam_core_FObject
       */},
     },
   ],

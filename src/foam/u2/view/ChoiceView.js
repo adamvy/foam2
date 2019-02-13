@@ -20,18 +20,20 @@ foam.CLASS({
   name: 'ChoiceView',
   extends: 'foam.u2.View',
 
-  documentation: 'Wraps a tag that represents a singular choice. That is, ' +
-      'this controller shows the user a fixed, probably small set of ' +
-      'choices, and the user picks one. ' +
-      'The choices are [value, label] pairs. this.choice is the current ' +
-      'pair, this.data the current value. this.text is the current label, ' +
-      'this.label is the label for the whole view (eg. "Medal Color", not ' +
-      '"Gold"). ' +
-      'The choices can be provided either as an array (this.choices) or as ' +
-      'a DAO plus the function this.objToChoice which turns objects from the ' +
-      'DAO into [value, label] pairs. ' +
-      'this.selectSpec is a ViewSpec for the inner view. It defaults to ' +
-      'foam.u2.tag.Select.',
+  documentation: `
+    Wraps a tag that represents a singular choice. That is,
+    this controller shows the user a fixed, probably small set of
+    choices, and the user picks one.
+    The choices are [value, label] pairs. this.choice is the current
+    pair, this.data the current value. this.text is the current label,
+    this.label is the label for the whole view (eg. "Medal Color", not
+    "Gold").
+    The choices can be provided either as an array (this.choices) or as
+    a DAO plus the function this.objToChoice which turns objects from the
+    DAO into [value, label] pairs.
+    this.selectSpec is a ViewSpec for the inner view. It defaults to
+    foam.u2.tag.Select.
+  `,
 
   properties: [
     {
@@ -56,8 +58,8 @@ foam.CLASS({
           this.text = this.placeholder;
           this.index = -1;
         } else {
-          this.data  = n && n[0];
-          this.text  = n && n[1];
+          this.data = n && n[0];
+          this.text = n && n[1];
           this.index = this.findIndexOfChoice(n);
         }
         this.feedback_ = false;
@@ -76,10 +78,13 @@ foam.CLASS({
           for ( var key in nu ) {
             if ( nu.hasOwnProperty(key) ) out.push([ key, nu[key] ]);
           }
+          if ( this.dynamicSize ) {
+            this.size = Math.min(out.length, this.maxSize);
+          }
           return out;
         }
 
-        nu = foam.Array.clone(nu);
+        nu = foam.Array.shallowClone(nu);
 
         // Upgrade single values to [value, value].
         for ( var i = 0; i < nu.length; i++ ) {
@@ -88,8 +93,9 @@ foam.CLASS({
           }
         }
 
+        if ( this.dynamicSize ) this.size = Math.min(nu.length, this.maxSize);
         return nu;
-      },
+      }
     },
     {
       class: 'Int',
@@ -133,7 +139,7 @@ foam.CLASS({
     {
       name: 'data',
       postSet: function(o, n) {
-        if ( o !== n ) this.choice = this.findChoiceByData(n) || [ n, n ];
+        if ( o !== n ) this.choice = this.findChoiceByData(n) || [n, n];
       }
     },
     {
@@ -150,7 +156,27 @@ foam.CLASS({
     },
     'feedback_',
     'defaultValue',
-    'size'
+    {
+      class: 'Int',
+      name: 'size',
+      documentation: `The number of entries in the HTML 'select' element that
+        should be visible.`
+    },
+    {
+      class: 'Boolean',
+      name: 'dynamicSize',
+      documentation: `The size of the select element (ie: the number of entries
+        shown at one time) should match the number of entries in the list. If
+        set to true, the 'size' property will be ignored. However, the 'maxSize'
+        property will still be respected.`
+    },
+    {
+      class: 'Int',
+      name: 'maxSize',
+      documentation: `The size of the select element should never be greater
+        than this number.`,
+      value: Number.MAX_SAFE_INTEGER
+    }
   ],
 
   methods: [
@@ -161,7 +187,7 @@ foam.CLASS({
     function initE() {
       // If no item is selected, and data has not been provided, select the 0th
       // entry.
-      if ( ! this.data && ! this.index ) {
+      if ( this.data == null && ! this.index ) {
         this.index = 0;
       }
 
@@ -174,7 +200,7 @@ foam.CLASS({
         choices$: this.choices$,
         placeholder$: this.placeholder$,
         mode$: this.mode$,
-        size: this.size
+        size$: this.size$
       }).end();
 
       this.dao$proxy.on.sub(this.onDAOUpdate);
@@ -223,7 +249,7 @@ foam.CLASS({
       code: function() {
         var d = this.data;
         if ( this.choices.length ) {
-          this.choice = ( d && this.findChoiceByData(d) ) || this.defaultValue;
+          this.choice = ( d != null && this.findChoiceByData(d) ) || this.defaultValue;
         }
       }
     },
@@ -233,7 +259,7 @@ foam.CLASS({
       code: function() {
         this.dao.select().then(function(s) {
           this.choices = s.array.map(this.objToChoice);
-          if ( ! this.data && this.index === -1 ) this.index = this.placeholder ? -1 : 0;
+          if ( this.data == null && this.index === -1 ) this.index = this.placeholder ? -1 : 0;
         }.bind(this));
       }
     }

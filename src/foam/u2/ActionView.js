@@ -73,7 +73,7 @@ foam.CLASS({
         this.add(this.iconFontName);
       }
 
-      if ( this.showLabel ) {
+      if ( this.label ) {
         this.add(this.label$);
       }
 

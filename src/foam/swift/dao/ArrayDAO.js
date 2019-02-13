@@ -52,7 +52,7 @@ return o
       name: 'find_',
       swiftCode: function() {/*
 let i = array.index { (o) -> Bool in
-  return self.primaryKey.compareValues(id, self.primaryKey.get(o)) == 0
+  return FOAM_utils.compare(id, self.primaryKey.get(o)) == 0
 }
 if i == nil { return nil }
 return array[i!]
@@ -79,9 +79,9 @@ return resultSink
     {
       name: 'removeAll_',
       swiftCode: `
-let predicate: FoamPredicate = predicate ?? True_create()
-var skip: Int = skip ?? 0;
-var limit: Int = limit ?? Int.max
+let predicate: foam_mlang_predicate_Predicate = predicate ?? True_create()
+var skip: Int = skip
+var limit: Int = limit
 
 for (i, o) in array.enumerated() {
   if predicate.f(o) {

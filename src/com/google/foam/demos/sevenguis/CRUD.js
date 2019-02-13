@@ -51,22 +51,18 @@ foam.CLASS({
 
   exports: [ 'as data' ],
 
-  axioms: [
-    foam.u2.CSS.create({
-      code: function() {/*
-      ^ { padding: 10px; }
-      ^ .detailView { border: none; background: white; }
-      ^ .content span { margin-top: 24px; overflow: hidden !important; }
-      ^ .buttons { margin-top: 24px; }
-      ^ .content { width: 1000px; }
-      ^ .detailPane { width: 45%; display: inline-block; margin-left: 50px; margin-top: 16px; }
-      ^ .label { color: #039; font-size: 14px; padding-top: 6px; }
-      ^ .prefix { margin-left: 10px; }
-      ^ .summaryPane { width: 49%; display: inline-block; vertical-align: top; }
-      ^ .tableView { height: 184px; outline: none; }
-      */}
-    })
-  ],
+  css: `
+    ^ { padding: 10px; }
+    ^ .detailView { border: none; background: white; }
+    ^ .content span { margin-top: 24px; overflow: hidden !important; }
+    ^ .buttons { margin-top: 24px; }
+    ^ .content { width: 1000px; }
+    ^ .detailPane { width: 45%; display: inline-block; margin-left: 50px; margin-top: 16px; }
+    ^ .label { color: #039; font-size: 14px; padding-top: 6px; }
+    ^ .prefix { margin-left: 10px; }
+    ^ .summaryPane { width: 49%; display: inline-block; vertical-align: top; }
+    ^ .tableView { height: 184px; outline: none; }
+  `,
 
   properties: [
     {
@@ -90,11 +86,10 @@ foam.CLASS({
         return dao.where(this.STARTS_WITH_IC(this.Person.SURNAME, prefix));
       },
       view: {
-        class: 'foam.u2.TableView',
+        class: 'foam.u2.view.TableView',
         of: com.google.foam.demos.sevenguis.Person,
         title: '',
-        scrollEnabed: true,
-        editColumns: false
+        editColumnsEnabled: false
       }
     },
     {
@@ -117,7 +112,7 @@ foam.CLASS({
           start(this.PREFIX, {onKey: true, type: 'search'}).end().
           start('div').addClass('content').
             start('span').addClass('summaryPane').
-              start(this.FILTERED_DAO, {hardSelection$: this.selection$}).end().
+              start(this.FILTERED_DAO, {selection$: this.selection$}).end().
             end().
             start('span').addClass('detailPane').
               add(this.PERSON).

@@ -246,7 +246,7 @@ foam.LIB({
      * with a particular value for its first argument.
      */
     function memoize1(/* Function */ f) {
-      var cache = {}, nullCache, undefinedCache;
+      var cache = {};
       var ret = foam.Function.setName(
           function(key) {
             foam.assert(
@@ -263,8 +263,12 @@ foam.LIB({
             return cache[mKey];
           },
           'memoize1(' + f.name + ')');
-        ret.toString = function() { return 'foam.Function.memoize1(' + f.toString() + ')'; };
-        return ret;
+      ret.toString = function() {
+        return f.toString();
+        return `foam.Function.memoize1(${f.toString()})`
+      };
+      ret.args = [];
+      return ret;
     },
 
     /**
@@ -277,6 +281,174 @@ foam.LIB({
       return f;
     },
 
+    /** Convenience method to append 'arguments' onto a real array **/
+    function appendArguments(a, args, start) {
+      start = start || 0;
+      for ( var i = start ; i < args.length ; i++ ) a.push(args[i]);
+      return a;
+    },
+
+    /** Finds the function(...) declaration arguments part. Strips newlines. */
+    function argsStr(f) {
+      var str = f.
+          toString().
+          replace(/(\r\n|\n|\r)/gm,'');
+      var isArrowFunction = !/(async )?function/.test(str);
+
+      var match = isArrowFunction ?
+          // (...args...) => ...
+          // or
+          // arg => ...
+          match = str.match(/^(\(([^)]*)\)[^=]*|([^=]+))=>/) :
+          // function (...args...) { ...body... }
+          match = str.match(/^(async )?function(\s+[_$\w]+|\s*)\((.*?)\)/);
+
+      if ( ! match ) {
+        /* istanbul ignore next */
+        throw new TypeError("foam.Function.argsStr could not parse input function:\n" + ( f ? f.toString() : 'undefined' ) );
+      }
+
+      return isArrowFunction ? (match[2] || match[1] || '') : (match[3] || '');
+    },
+
+    function argNames(f) {
+      /**
+       * Return a function's arguments as an array.
+       * Ex. argNames(function(a,b) {...}) === ['a', 'b']
+       **/
+      var args = foam.Function.argsStr(f);
+      args += ',';
+
+      var ret = [];
+      // [ ws /* anything */ ] ws [...]arg_name ws [ /* anything */ ],
+      var argMatcher = /(\s*\/\*.*?\*\/)?\s*((?:\.\.\.)?[\w_$]+)\s*(\/\*.*?\*\/)?\s*\,+/g;
+      var typeMatch;
+      while ( ( typeMatch = argMatcher.exec(args) ) !== null ) {
+        ret.push(typeMatch[2]);
+      }
+      return ret;
+    },
+
+    /** Finds the function(...) declaration and finds the first block comment
+      in the function body. */
+    function functionComment(f) {
+      var match = f.
+          toString().
+          replace(/\n/g, '_#_%_%_'). // fake newlines
+          match(/^function(\s+[_$\w]+|\s*)\(.*?\)(?:\_\#\_\%\_\%\_|\s)*\{(?:\_\#\_\%\_\%\_|\s)*\/\*\*?\s*(.*?)\*?\*\/.*\}/);
+      if ( ! match ) {
+        return '';
+      } else {
+        return match[2] && match[2].replace(/_#_%_%_/g, '\n') || '';
+      }
+    },
+
+    function breakdown(f) {
+      var ident = "([^,\\s\\)]+)";
+      var ws = "\\s*";
+      var comment = "(?:\\/\\*(?:.|\\s)*?\\*\\/)?";
+      var skip = "(?:" + ws + comment + ws + ")*";
+
+      var functionHeader = "(async )?" + "function" + skip + ident + "?" + ws + "\\(";
+
+      var arrowHeader = "\\(";
+
+      var arg = "(?:" + skip + ident + skip + ")";
+      var nextArg = "(?:," + skip + arg + ")";
+      var argEnd = skip + "\\)";
+      var headerToBody = skip + "(?:\\=\\>)?" + skip;
+      var bodyText = "((?:.|\\s)*)";
+      var body = "\\{" + bodyText + "\\}";
+      var arrowBody = bodyText;
+
+      var breakdown = {
+        name: '',
+        args: [],
+        body: ''
+      };
+
+      var source = f.toString();
+
+      var lastIndex = 0;
+      var currentRegex;
+
+      function again() {
+        var match = currentRegex.exec(source);
+        if ( match ) lastIndex = currentRegex.lastIndex;
+        return match;
+      }
+
+      function next(e) {
+        prep(e);
+        return again();
+      }
+
+      function prep(e) {
+        currentRegex = new RegExp(e, "my");
+        currentRegex.lastIndex = lastIndex;
+      }
+
+      var isArrow = false;
+
+      var match = next(functionHeader);
+      if ( match ) {
+        breakdown.async = !! match[1];
+        if ( match[2] ) breakdown.name = match[2];
+      } else {
+        match = next(arrowHeader);
+        if ( ! match ) return null;
+        isArrow = true;
+      }
+
+      match = next(arg);
+
+      if ( match ) {
+        breakdown.args.push(match[1]);
+        prep(nextArg);
+        while ( match = again() ) {
+          breakdown.args.push(match[1]);
+        }
+      }
+
+      match = next(argEnd);
+      if ( ! match ) return null;
+
+      if ( ! next(headerToBody) ) return null;
+
+
+      match = isArrow ? next(arrowBody) : next(body);
+
+      if ( ! match ) return null;
+      breakdown.body = match[1];
+
+      return breakdown;
+    },
+
+    /**
+     * Calls fn, and provides the arguments to fn by looking
+     * up their names on source. The 'this' context is either
+     * source, or opt_self if provided.
+     *
+     * If the argument maps to a function on source, it is bound to source.
+     *
+     * Ex.
+     * var a = {
+     *   name: 'adam',
+     *   hello: function() {
+     *     console.blog('Hello ' + this.name);
+     *   }
+     * };
+     * function foo(name, hello) {
+     *   console.log('Name is ' + name);
+     *   hello();
+     * }
+     * foam.Function.withArgs(foo, a);
+     *
+     * Outputs:
+     * Name is adam
+     * Hello adam
+     *
+     **/
     function withArgs(fn, source, opt_self) {
       var argNames = foam.Function.argNames(fn);
       var args = [];
@@ -288,26 +460,18 @@ foam.LIB({
       return fn.apply(opt_self || source, args);
     },
 
-    /**
-     * Return a function's arguments as an array.
-     * Ex. argNames(function(a,b) {...}) === ['a', 'b']
-     **/
-    function argNames(f) {
-      var str = f.toString();
-      str = str.substring(str.indexOf('(') + 1, str.indexOf(')'));
+    function closure(fn) {
+      /**
+         Create a closure which still serializes to its definition.
 
-      var ws = "\\s*";
-      var ident = "([^,\\s\\)]+)";
-      var comma = ",?";
-      var comment = "/\\*(?:[^*]|[*][^/])*\\*/"
-      var skip = "(?:" + ws + "|" + comment + ")*";
-      var pattern = new RegExp(skip + ident + skip + comma, "mg");
+         var f = foam.Function.closure(function() { var i = 0; return function() { return i++; } });
+         f(); -> 0
+         f(); -> 1
+         f.toString(); -> "foam.Function.closure(function () { var i = 0; return function() { return i++; } })"
+      */
+      var ret = fn();
 
-      var ret = [];
-      var match;
-      while ( match = pattern.exec(str) ) {
-        ret.push(match[1]);
-      }
+      ret.toString = function() { return 'foam.Function.closure(' + fn.toString() + ')'; };
 
       return ret;
     }
@@ -413,6 +577,15 @@ foam.LIB({
       })
     },
     {
+      name: 'pluralize',
+      code: foam.Function.memoize1(function(str) {
+        // Ex. Book -> Books, Currency -> Currencies, Kiss -> Kisses
+        if ( str.endsWith('s') ) return str + 'es';
+        if ( str.endsWith('y') ) return str.substring(0, str.length-1) + 'ies';
+        return str + 's';
+      })
+    },
+    {
       /**
        * Takes a key and creates a slot name for it.  Generally key -> key + '$'.
        *
@@ -482,6 +655,14 @@ foam.LIB({
     function isInstance(o) { return Array.isArray(o); },
     function is(a, b) { return a === b; },
     function isSubType(t) { return t === foam.Array; },
+    function shallowClone(o) {
+      /** Returns a shallow copy of this array. */
+      var ret = new Array(o.length);
+      for ( var i = 0 ; i < o.length ; i++ ) {
+        ret[i] = o[i];
+      }
+      return ret;
+    },
     function clone(o) {
       /** Returns a deep copy of this array and its contents. */
       var ret = new Array(o.length);
@@ -549,6 +730,24 @@ foam.LIB({
 });
 foam.DEFTYPE(foam.Array);
 
+
+foam.LIB({
+  name: 'foam.RegExp',
+  methods: [
+    function isInstance(o) { return o instanceof RegExp; },
+    function is(a, b) { return a === b; },
+    function clone(o) { return new RegExp(o); },
+    function equals(a, b) { return this.compare(a, b) == 0 },
+    function compare(a, b) {
+      if ( ! foam.RegExp.isInstance(b) ) return 1;
+      return foam.String.compare(a.toString(), b.toString());
+    },
+    // Hash n & n: Truncate to 32 bits.
+    function hashCode(d) { foam.String.hashCode(d.toString()) },
+  ]
+});
+
+
 foam.LIB({
   name: 'foam.Date',
   methods: [
@@ -564,6 +763,44 @@ foam.LIB({
     },
     // Hash n & n: Truncate to 32 bits.
     function hashCode(d) { var n = d.getTime(); return n & n; },
+    function relativeDateString(date) {
+      // FUTURE: make this translatable for i18n, including plurals
+      //   "hours" vs. "hour"
+      var seconds = Math.trunc( ( Date.now() - date.getTime() ) / 1000 );
+
+      if ( seconds >= 0 && seconds < 60 ) return 'moments ago';
+      if ( seconds < 0  && seconds > -60 ) return 'in moments';
+
+      var minutes = Math.trunc((seconds) / 60);
+
+      if ( minutes === 1 ) return '1 minute ago';
+      if ( minutes === -1 ) return 'in 1 minute';
+
+      if ( minutes >= 0 && minutes < 60 ) return minutes + ' minutes ago';
+      if ( minutes < 0  && minutes > -60 ) return 'in ' + -minutes + ' minutes';
+
+      var hours = Math.trunc(minutes / 60);
+      if ( hours === 1 ) return '1 hour ago';
+      if ( hours === -1 ) return 'in 1 hour';
+
+      if ( hours >= 0 && hours < 24 ) return hours + ' hours ago';
+      if ( hours <  0 && hours > -24 ) return 'in ' + -hours + ' hours';
+
+      var days = Math.trunc(hours / 24);
+      if ( days === 1 ) return '1 day ago';
+      if ( days === -1 ) return 'in 1 day';
+
+      if ( days >= 0 && days < 7 ) return days + ' days ago';
+      if ( days <  0 && days > -7 ) return 'in ' + -days + ' days';
+
+      if ( days >= 0 && days < 365 || days < 0 && days > -365 ) {
+        var year = 1900 + date.getYear();
+        var noyear = date.toDateString().replace(' ' + year, '');
+        return noyear.substring(4);
+      }
+
+      return date.toDateString().substring(4);
+    }
   ]
 });
 foam.DEFTYPE(foam.Date);
@@ -580,9 +817,9 @@ foam.LIB({
     function is(a, b) { return a === b; },
     function isSubType(t) { return t === foam.Object; },
     function isInstance(o) {
-      return typeof o === 'object' &&
-        ! Array.isArray(o) &&
-        ! foam.core.FObject.isInstance(o);
+      return typeof o === 'object' && ! Array.isArray(o) &&
+          ! foam.core.FObject.isInstance(o) &&
+          ! foam.Null.isInstance(o);
     },
     function clone(o) { return o; },
     function equals(a, b) { return a === b; },
@@ -626,7 +863,7 @@ foam.LIB({
       var uid = '__mmethod__' + foam.next$UID() + '__';
 
       var first = true;
-      return function(arg1) {
+      var f = function(arg1) {
         if ( first ) {
           for ( var key in map ) {
             var type = key === 'FObject' ?
@@ -652,6 +889,29 @@ foam.LIB({
         }
         return ( type[uid] || opt_defaultMethod ).apply(this, arguments);
       };
+      // The native toString on the function that's returned will never work on
+      // its own because the args and vars declared above it won't exist so
+      // toString is overwritten to output a call to foam.mmethod with the
+      // original args.
+      f.toString = function() {
+        var mapString = '{';
+        var first = true;
+        for ( var key in map ) {
+          if ( ! first ) mapString += ',';
+          mapString += `"${key}":${map[key].toString()}`;
+          first = false;
+        }
+        mapString += '}';
+
+        var defaultMethodStr = opt_defaultMethod ?
+          opt_defaultMethod.toString() : 'null';
+
+        return `foam.mmethod(${mapString}, ${defaultMethodStr})`;
+      };
+      f.map = map;
+      f.defaultMethod = opt_defaultMethod;
+      f.args = [];
+      return f;
     }
   ]
 });
@@ -723,28 +983,6 @@ foam.LIB({
 
       var pkg = foam.package.ensurePackage(global, cls.package);
       pkg[cls.name] = cls;
-
-      foam.package.triggerClass_(cls);
-    },
-
-    function waitForClass(cb, cls) {
-      if ( foam.lookup(cls, true) ) cb(foam.lookup(cls));
-
-      foam.package.__pending = foam.package.__pending || {};
-      foam.package.__pending[cls] = foam.package.__pending[cls] || [];
-      foam.package.__pending[cls].push(cb);
-    },
-
-    function triggerClass_(cls) {
-      if ( ! foam.package.__pending || ! foam.package.__pending[cls.id] ) return;
-
-      var pending = foam.package.__pending[cls.id];
-
-      foam.package.__pending[cls.id] = undefined;
-
-      for ( var i = 0 ; i < pending.length ; i++ ) {
-        pending[i](cls);
-      }
     },
 
     /**
@@ -764,8 +1002,6 @@ foam.LIB({
             if ( tmp ) return tmp;
 
             tmp = thunk();
-
-            foam.package.triggerClass_(tmp);
 
             return tmp;
           }
@@ -829,6 +1065,7 @@ foam.LIB({
              c ;
     },
 
+    // Gets replaced in mlang.js
     function compound(args) {
       /* Create a compound comparator from an array of comparators. */
       var cs = args.map(foam.compare.toCompare);

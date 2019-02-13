@@ -33,9 +33,15 @@ foam.CLASS({
       value: true
     }
   ],
+
   methods: [
-    function installInProto() {},
-//    function installInClass() {},
+    function installInProto() { },
+    function installInClass(cls, superMethod, existingMethod) {
+      // This is required to avoid inheritance from regular methods,
+      // which would prevent methods from being named the same as methods
+      // defined on FObject, like: log, warn, error.
+      cls.axiomMap_[this.name] = this;
+    }
   ]
 });
 
@@ -45,7 +51,7 @@ foam.CLASS({
   name: 'InterfaceModel',
   extends: 'foam.core.Model',
 
-  documentation: 'An Interface Mode/definition. Created with foam.INTERFACE().',
+  documentation: 'An Interface definition. Created with foam.INTERFACE().',
 
   properties: [
     [ 'extends', 'foam.core.AbstractInterface' ],
@@ -57,6 +63,12 @@ foam.CLASS({
     {
       class: 'StringArray',
       name: 'javaExtends'
+    }
+  ],
+  methods: [
+    function validate() {
+      if ( this.extends !== 'foam.core.AbstractInterface' )
+        throw 'INTERFACE: ' + this.id + ' does not extend AbstractInterface.  Did you mean impelments [ \'' + this.extends + '\' ], ?';
     }
   ]
 });
@@ -72,7 +84,7 @@ foam.CLASS({
     {
       installInClass: function(cls) {
         cls.create = function() {
-          throw new Error("Cannot instantiate an interface: " + cls.id);
+          throw new Error("Cannot instantiate an Interface.");
         };
       }
     }

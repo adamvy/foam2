@@ -94,7 +94,6 @@ foam.CLASS({
     },
 
     function error() {
-      throw new Error(Array.from(arguments).join(' '));
       this.console.error.apply(this.console, arguments);
     },
 
@@ -107,8 +106,7 @@ foam.CLASS({
     },
 
     function warn() {
-      var msg = Array.prototype.join.call(arguments, '');
-      this.console.warn(msg)
+      this.console.warn.apply(this.console, arguments);
     },
 
     function async(l) {
@@ -198,16 +196,19 @@ foam.CLASS({
     function cancelAnimationFrame(id) {
       this.window.cancelAnimationFrame(id);
     },
-    function installCSS(text, id) {
+    function installCSS(text, id, opt_eid) {
+      var eid = foam.u2.Element.NEXT_ID();
       /* Create a new <style> tag containing the given CSS code. */
-      this.document && this.document.head.insertAdjacentHTML('beforeend',
-          '<style owner="' + id + '">' + text + '</style>');
+      this.document && this.document.head.insertAdjacentHTML(
+        'beforeend',
+        '<style id="' + opt_eid + '" owner="' + id + '">' + text + '</style>');
     }
   ]
 });
 
-
 foam.CLASS({
+  package: 'foam.core',
+  name: 'WindowNodeJSRefinement',
   refines: 'foam.core.Window',
   flags: [ 'node' ],
   methods: [
@@ -220,8 +221,18 @@ foam.CLASS({
   ]
 });
 
+
 // Replace top-level Context with one which includes Window's exports.
-foam.__context__ = foam.core.Window.create(
-  { window: global },
-  foam.__context__
-).__subContext__;
+foam.SCRIPT({
+  package: 'foam.core',
+  name: 'WindowScript',
+  requires: [
+    'foam.core.Window',
+  ],
+  code: function() {
+    foam.__context__ = foam.core.Window.create(
+      { window: global },
+      foam.__context__
+    ).__subContext__;
+  }
+});

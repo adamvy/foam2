@@ -37,12 +37,22 @@ foam.CLASS({
     {
       class: 'String',
       name: 'daoKey',
-      label: 'DAO'
-      // TODO: make keyView
+      label: 'DAO',
+      view: function(_, X) {
+        var E = foam.mlang.Expressions.create();
+        return foam.u2.view.ChoiceView.create({
+          dao: X.nSpecDAO
+            .where(E.ENDS_WITH(foam.nanos.boot.NSpec.ID, 'DAO'))
+            .orderBy(foam.nanos.boot.NSpec.ID),
+          objToChoice: function(nspec) {
+            return [nspec.id, nspec.id];
+          }
+        });
+      }
     },
     {
       class: 'Enum',
-      of: 'foam.nanos.dig.Format',
+      of: 'foam.nanos.http.Format',
       name: 'format',
       // format hidden until implemented
       hidden: true
@@ -68,15 +78,14 @@ foam.CLASS({
       args: [
         {
           name: 'x',
-          javaType: 'foam.core.X'
+          type: 'Context'
         }
       ],
-      javaReturns: 'void',
       javaCode: `
         try {
           DAO dao = (DAO) x.get(getDaoKey());
           // TODO: choose outputter based on format
-          dao.listen(new HTTPSink(getUrl(), foam.nanos.dig.Format.JSON), null);
+          dao.listen(new HTTPSink(getUrl(), foam.nanos.http.Format.JSON), null);
         } catch (Throwable t) {
           ((Logger) x.get("logger")).error("DUG", "error executing DUG", t);
         }

@@ -41,6 +41,8 @@ foam.CLASS({
       flags: ['swift'],
     },
     'foam.box.HTTPReplyBox',
+    'foam.box.HTTPException',
+    'foam.box.Message',
   ],
 
   imports: [
@@ -48,7 +50,7 @@ foam.CLASS({
     {
       name: 'me',
       key: 'me',
-      javaType: 'foam.box.Box'
+      type: 'foam.box.Box'
     },
     'window'
   ],
@@ -66,7 +68,7 @@ foam.CLASS({
     {
       class: 'FObjectProperty',
       of: 'foam.json.Parser',
-      swiftType: 'FObjectParser',
+      swiftType: 'foam_swift_parse_json_FObjectParser',
       name: 'parser',
       generateJava: false,
       factory: function() {
@@ -84,6 +86,7 @@ foam.CLASS({
     {
       class: 'FObjectProperty',
       of: 'foam.json.Outputter',
+      swiftType: 'foam_swift_parse_json_output_Outputter',
       name: 'outputter',
       generateJava: false,
       swiftFactory: 'return SwiftOutputter_create()',
@@ -153,7 +156,10 @@ protected class ResponseThread implements Runnable {
         var req = this.HTTPRequest.create({
           url:     this.prepareURL(this.url),
           method:  this.method,
-          payload: payload
+          payload: payload,
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8'
+          },
         }).send();
 
         req.then(function(resp) {
@@ -167,12 +173,12 @@ protected class ResponseThread implements Runnable {
         });
       },
       swiftCode: function() {/*
-let replyBox = msg.attributes["replyBox"] as? Box
+let replyBox = msg.attributes["replyBox"] as? foam_box_Box
 msg.attributes["replyBox"] = HTTPReplyBox_create()
 
 var request = URLRequest(url: Foundation.URL(string: self.url)!)
 request.httpMethod = "POST"
-request.httpBody = outputter?.swiftStringify(msg).data(using: .utf8)
+request.httpBody = outputter.swiftStringify(msg).data(using: .utf8)
 
 msg.attributes["replyBox"] = replyBox
 
@@ -182,12 +188,12 @@ let task = URLSession.shared.dataTask(with: request) { data, response, error in
       throw FoamError("HTTPBox no response")
     }
     guard let str = String(data: data, encoding: .utf8),
-          let obj = self.parser.parseString(str) as? Message else {
+          let obj = self.parser.parseString(str) as? foam_box_Message else {
       throw FoamError("Failed to parse HTTPBox response")
     }
     try replyBox?.send(obj)
   } catch let e {
-    try? replyBox?.send(self.__context__.create(Message.self, args: ["object": e])!)
+    try? replyBox?.send(self.__context__.create(foam_box_Message.self, args: ["object": e])!)
   }
 }
 task.resume()
@@ -195,7 +201,7 @@ task.resume()
       javaCode: `
 // TODO: Go async and make request in a separate thread.
 java.net.HttpURLConnection conn;
-foam.box.Box replyBox = (foam.box.Box)message.getAttributes().get("replyBox");
+foam.box.Box replyBox = (foam.box.Box)msg.getAttributes().get("replyBox");
 
 try {
   java.net.URL url = new java.net.URL(getUrl());
@@ -210,14 +216,14 @@ try {
 
 
   // TODO: Clone message or something when it clones safely.
-  message.getAttributes().put("replyBox", getX().create(foam.box.HTTPReplyBox.class));
+  msg.getAttributes().put("replyBox", getX().create(foam.box.HTTPReplyBox.class));
 
 
   foam.lib.json.Outputter outputter = new foam.lib.json.Outputter(foam.lib.json.OutputterMode.NETWORK);
   outputter.setX(getX());
-  output.write(outputter.stringify(message));
+  output.write(outputter.stringify(msg));
 
-  message.getAttributes().put("replyBox", replyBox);
+  msg.getAttributes().put("replyBox", replyBox);
 
   output.close();
 

@@ -10,23 +10,36 @@ foam.CLASS({
 
   documentation: 'Country information.',
 
-  ids: [ 'code' ],
+  ids: ['code'],
 
   properties: [
     {
       class: 'String',
-      name: 'code'
+      name: 'code',
+      documentation: 'ISO 3166-1 alpha-2 Country codes.'
     },
     {
       class: 'String',
-      name: 'name'
+      name: 'iso31661Code',
+      label: 'ISO Code',
+      documentation: 'ISO 3166-1 alpha-3 country codes.'
+    },
+    {
+      class: 'String',
+      name: 'name',
+      documentation: 'Country name.'
+    },
+    {
+      class: 'StringArray',
+      name: 'alternativeNames'
     }
   ],
   methods: [{
     name: 'toString',
-    returns: 'String',
-    javaReturns: 'String',
-    code: function() { return "Country: " + this.code + ", " + this.name; },
+    type: 'String',
+    code: function() {
+      return 'Country: ' + this.code + ', ' + this.name;
+    },
     javaCode: `
       return "{ code:" + this.getCode() + ", name:" + this.getName() + " }";
     `

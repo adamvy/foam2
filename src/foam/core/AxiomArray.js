@@ -27,6 +27,7 @@ foam.CLASS({
       name: 'of',
       required: true
     },
+    [ 'type', 'Any[]' ],
     {
       name: 'adapt',
       value: function(_, a, prop) {
@@ -48,10 +49,9 @@ foam.CLASS({
       name: 'assertValue',
       value: function(v, prop) {
         foam.assert(Array.isArray(v),
-                    'Tried to set', prop.name, 'to non array value');
+            'Tried to set', prop.name, 'to non array value');
 
-        var of = this.lookup(prop.of, true);
-
+        var of = this.__context__.lookup(prop.of, true);
         foam.assert(
             of,
             'Unknown "of" Model in AxiomArray: property=',
@@ -61,14 +61,14 @@ foam.CLASS({
         for ( var i = 0 ; i < v.length ; i++ ) {
           foam.assert(of.isInstance(v[i]),
               'Element', i, 'of', prop.name, 'is not an instance of',
-                      prop.of, v[i]);
+              prop.of);
         }
       }
     },
     {
       name: 'adaptArrayElement',
       value: function(a, prop) {
-        var of = this.lookup(prop.of);
+        var of = this.__context__.lookup(prop.of);
         return of.isInstance(a) ? a : of.create(a, this);
       }
     },

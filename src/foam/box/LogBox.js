@@ -46,7 +46,7 @@ foam.CLASS({
       of: 'foam.log.LogLevel',
       name: 'logLevel',
       factory: function() { return this.LogLevel.INFO; },
-      swiftFactory: 'return LogLevel.INFO',
+      swiftFactory: 'return foam_log_LogLevel.INFO',
     }
   ],
 
@@ -66,7 +66,8 @@ foam.CLASS({
 let output = msg.object;
 let logMsg = [
   name,
-  output is Error ? (output as! Error).localizedDescription : msg.toString()
+  output is Error ? (output as! Error).localizedDescription :
+  foam_swift_parse_json_output_Outputter.PRETTY.swiftStringify(msg)
 ].joined(separator: " ")
 if let logLevelStr = logLevel?.consoleMethodName,
    let logMethod = get(key: logLevelStr) as? (String) -> Void {

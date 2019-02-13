@@ -8,20 +8,23 @@ package foam.nanos.auth;
 
 import foam.core.ContextAwareSupport;
 import foam.core.X;
+import foam.dao.ArraySink;
 import foam.dao.DAO;
-import foam.dao.ListSink;
 import foam.dao.Sink;
 import foam.mlang.MLang;
+import foam.nanos.logger.Logger;
 import foam.nanos.NanoService;
 import foam.nanos.session.Session;
 import foam.util.Email;
-import foam.util.LRULinkedHashMap;
 import foam.util.Password;
 import foam.util.SafetyUtil;
-import java.security.Permission;
-import java.util.*;
-import javax.naming.AuthenticationException;
 import javax.security.auth.AuthPermission;
+import java.security.Permission;
+import java.util.Calendar;
+import java.util.List;
+import java.util.regex.Pattern;
+import static foam.mlang.MLang.AND;
+import static foam.mlang.MLang.EQ;
 
 public class UserAndGroupAuthService
   extends    ContextAwareSupport
@@ -30,17 +33,18 @@ public class UserAndGroupAuthService
   protected DAO userDAO_;
   protected DAO groupDAO_;
   protected DAO sessionDAO_;
-  protected Map challengeMap; // TODO: let's store in Session Context instead
 
-  // pattern used to check if password has only alphanumeric characters
-  java.util.regex.Pattern alphanumeric = java.util.regex.Pattern.compile("[^a-zA-Z0-9]");
+  public final static String CHECK_USER_PERMISSION = "service.auth.checkUser";
+
+  public UserAndGroupAuthService(X x) {
+    setX(x);
+  }
 
   @Override
   public void start() {
-    userDAO_     = (DAO) getX().get("localUserDAO");
-    groupDAO_    = (DAO) getX().get("groupDAO");
-    sessionDAO_  = (DAO) getX().get("sessionDAO");
-    challengeMap = new LRULinkedHashMap<Long, Challenge>(20000);
+    userDAO_    = (DAO) getX().get("localUserDAO");
+    groupDAO_   = (DAO) getX().get("localGroupDAO");
+    sessionDAO_ = (DAO) getX().get("localSessionDAO");
   }
 
   public User getCurrentUser(X x) throws AuthenticationException {
@@ -56,7 +60,28 @@ public class UserAndGroupAuthService
       throw new AuthenticationException("User not found: " + session.getUserId());
     }
 
-    return (User) Password.sanitize(user);
+    // check if user enabled
+    if ( ! user.getEnabled() ) {
+      throw new AuthenticationException("User disabled");
+    }
+
+    // check if user login enabled
+    if ( ! user.getLoginEnabled() ) {
+      throw new AuthenticationException("Login disabled");
+    }
+
+    // check if user group enabled
+    Group group = (Group) groupDAO_.find(user.getGroup());
+    if ( group != null && ! group.getEnabled() ) {
+      throw new AuthenticationException("User group disabled");
+    }
+
+    // check for two-factor authentication
+    if ( user.getTwoFactorEnabled() && ! session.getContext().getBoolean("twoFactorSuccess") ) {
+      throw new AuthenticationException("User requires two-factor authentication");
+    }
+
+    return user;
   }
 
   /**
@@ -64,20 +89,7 @@ public class UserAndGroupAuthService
    * This is saved in a LinkedHashMap with ttl of 5
    */
   public String generateChallenge(long userId) throws AuthenticationException {
-    if ( userId < 1 ) {
-      throw new AuthenticationException("Invalid User Id");
-    }
-
-    if ( userDAO_.find(userId) == null ) {
-      throw new AuthenticationException("User not found");
-    }
-
-    String   generatedChallenge = UUID.randomUUID() + String.valueOf(userId);
-    Calendar calendar           = Calendar.getInstance();
-    calendar.add(Calendar.SECOND, 5);
-
-    challengeMap.put(userId, new Challenge(generatedChallenge, calendar.getTime()));
-    return generatedChallenge;
+    throw new UnsupportedOperationException("Unsupported operation: generateChallenge");
   }
 
   /**
@@ -87,36 +99,46 @@ public class UserAndGroupAuthService
    * How often should we purge this map for challenges that have expired?
    */
   public User challengedLogin(X x, long userId, String challenge) throws AuthenticationException {
-    if ( userId < 1 || "".equals(challenge) ) {
-      throw new AuthenticationException("Invalid Parameters");
-    }
+    throw new UnsupportedOperationException("Unsupported operation: challengedLogin");
+  }
 
-    Challenge c = (Challenge) challengeMap.get(userId);
-    if ( c == null ) {
-      throw new AuthenticationException("Invalid userId");
-    }
-
-    if ( ! c.getChallenge().equals(challenge) ) {
-      throw new AuthenticationException("Invalid Challenge");
-    }
-
-    if ( new Date().after(c.getTtl()) ) {
-      challengeMap.remove(userId);
-      throw new AuthenticationException("Challenge expired");
-    }
-
-    User user = (User) userDAO_.find(userId);
+  /**
+    Logs user and sets user group into the current sessions context.
+   */
+  private User userAndGroupContext(X x, User user, String password) throws AuthenticationException {
     if ( user == null ) {
       throw new AuthenticationException("User not found");
     }
 
-    challengeMap.remove(userId);
+    // check if user enabled
+    if ( ! user.getEnabled() ) {
+      throw new AuthenticationException("User disabled");
+    }
+
+    // check if user login enabled
+    if ( ! user.getLoginEnabled() ) {
+      throw new AuthenticationException("Login disabled");
+    }
+
+    // check if user group enabled
+    Group group = (Group) groupDAO_.find(user.getGroup());
+    if ( group != null && ! group.getEnabled() ) {
+      throw new AuthenticationException("User group disabled");
+    }
+
+    if ( ! Password.verify(password, user.getPassword()) ) {
+      throw new AuthenticationException("Invalid Password");
+    }
+
+    // Freeze user
+    user = (User) user.fclone();
+    user.freeze();
 
     Session session = x.get(Session.class);
     session.setUserId(user.getId());
     session.setContext(session.getContext().put("user", user));
-    sessionDAO_.put(session);
-    return (User) Password.sanitize(user);
+
+    return user;
   }
 
   /**
@@ -128,63 +150,35 @@ public class UserAndGroupAuthService
       throw new AuthenticationException("Invalid Parameters");
     }
 
-    User user = (User) userDAO_.find(userId);
-    if ( user == null ) {
-      throw new AuthenticationException("User not found.");
-    }
-
-    if ( ! Password.verify(password, user.getPassword()) ) {
-      throw new AuthenticationException("Invalid Password");
-    }
-
-    Session session = x.get(Session.class);
-    session.setUserId(user.getId());
-    session.setContext(session.getContext().put("user", user));
-    sessionDAO_.put(session);
-    return (User) Password.sanitize(user);
+    return userAndGroupContext(x, (User) userDAO_.find(userId), password);
   }
 
   public User loginByEmail(X x, String email, String password) throws AuthenticationException {
-    Sink sink = new ListSink();
-    sink = userDAO_.where(MLang.EQ(User.EMAIL, email.toLowerCase())).limit(1).select(sink);
+    User user = (User) userDAO_.find(
+      AND(
+        EQ(User.EMAIL, email.toLowerCase()),
+        EQ(User.LOGIN_ENABLED, true)
+      )
+    );
 
-    List data = ((ListSink) sink).getData();
-    if ( data == null || data.size() != 1 ) {
-      throw new AuthenticationException("User not found");
-    }
-
-    User user = (User) data.get(0);
     if ( user == null ) {
       throw new AuthenticationException("User not found");
     }
-
-    if ( ! Password.verify(password, user.getPassword()) ) {
-      throw new AuthenticationException("Incorrect password");
-    }
-
-    Session session = x.get(Session.class);
-    session.setUserId(user.getId());
-    session.setContext(session.getContext().put("user", user));
-    sessionDAO_.put(session);
-    return (User) Password.sanitize(user);
+    return userAndGroupContext(x, user, password);
   }
 
   /**
-   * Check if the user in the context supplied has the right permission
-   * Return Boolean for this
-   */
-  public Boolean checkPermission(foam.core.X x, Permission permission) {
-    if ( x == null || permission == null ) {
-      return false;
+    Checks if the user passed into the method has the passed
+    in permission attributed to it by checking their group.
+    No check on User and group enabled flags.
+  */
+  public boolean checkUserPermission(foam.core.X x, User user, Permission permission) {
+    // check whether user has permission to check user permissions
+    if ( ! check(x, CHECK_USER_PERMISSION) ) {
+      throw new AuthorizationException();
     }
 
-    Session session = x.get(Session.class);
-    if ( session == null || session.getUserId() == 0 ) {
-      return false;
-    }
-
-    User user = (User) userDAO_.find(session.getUserId());
-    if ( user == null ) {
+    if ( user == null || permission == null ) {
       return false;
     }
 
@@ -194,9 +188,17 @@ public class UserAndGroupAuthService
       while ( ! SafetyUtil.isEmpty(groupId) ) {
         Group group = (Group) groupDAO_.find(groupId);
 
-        if ( group == null ) break;
+        // if group is null break
+        if ( group == null ) {
+          break;
+        }
 
-        if ( group.implies(permission) ) return true;
+        // check permission
+        if ( group.implies(permission) ) {
+          return true;
+        }
+
+        // check parent group
         groupId = group.getParent();
       }
     } catch (Throwable t) {
@@ -205,8 +207,88 @@ public class UserAndGroupAuthService
     return false;
   }
 
-  public Boolean check(foam.core.X x, String permission) {
+  /**
+   * Check if the user in the context supplied has the right permission
+   * Return Boolean for this
+   */
+  public boolean checkPermission(foam.core.X x, Permission permission) {
+    if ( x == null || permission == null ) {
+      return false;
+    }
+
+    Session session = x.get(Session.class);
+    if ( session == null || session.getUserId() == 0 ) {
+      return false;
+    }
+
+    // NOTE: It's important that we use the User from the context here instead
+    // of looking it up in a DAO because if the user is actually an entity that
+    // an agent is acting as, then the user we get from the DAO won't have the
+    // correct group, which is the group set on the junction between the agent
+    // and the entity.
+    User user = (User) x.get("user");
+
+    // check if user exists and is enabled
+    if ( user == null || ! user.getEnabled() ) {
+      return false;
+    }
+
+    try {
+      String groupId = (String) user.getGroup();
+
+      while ( ! SafetyUtil.isEmpty(groupId) ) {
+        Group group = (Group) groupDAO_.find(groupId);
+
+        // if group is null break
+        if ( group == null ) {
+          break;
+        }
+
+        // check if group is enabled
+        if ( ! group.getEnabled() ) {
+          return false;
+        }
+
+        // check permission
+        if ( group.implies(permission) ) {
+          return true;
+        }
+
+        // check parent group
+        groupId = group.getParent();
+      }
+    } catch (IllegalArgumentException e) {
+      Logger logger = (Logger) x.get("logger");
+      logger.error("check", permission, e);
+    } catch (Throwable t) {
+    }
+
+    return false;
+  }
+
+
+  public boolean check(foam.core.X x, String permission) {
     return checkPermission(x, new AuthPermission(permission));
+  }
+
+  private String passwordValidationRegex() {
+    return "^.{6,}$"; // Minimum 6 characters
+  }
+
+  private String passwordValidationErrorMessage() {
+    return "Password must be at least 6 characters long";
+  }
+
+  public void validatePassword( String newPassword ) {
+    Pattern passwordValidationPattern = Pattern.compile(passwordValidationRegex());
+    String passwordErrorMessage = passwordValidationErrorMessage();
+    if ( SafetyUtil.isEmpty(newPassword) || ! passwordValidationPattern.matcher(newPassword).matches() ) {
+      throw new RuntimeException(passwordErrorMessage);
+    }
+  }
+
+  public boolean checkUser(foam.core.X x, User user, String permission) {
+    return checkUserPermission(x, user, new AuthPermission(permission));
   }
 
   /**
@@ -215,7 +297,7 @@ public class UserAndGroupAuthService
    */
   public User updatePassword(foam.core.X x, String oldPassword, String newPassword) throws AuthenticationException {
     if ( x == null || SafetyUtil.isEmpty(oldPassword) || SafetyUtil.isEmpty(newPassword) ) {
-      throw new RuntimeException("Invalid parameters");
+      throw new RuntimeException("Password fields cannot be blank");
     }
 
     Session session = x.get(Session.class);
@@ -228,26 +310,24 @@ public class UserAndGroupAuthService
       throw new AuthenticationException("User not found");
     }
 
-    if ( newPassword.contains(" ") ) {
-      throw new RuntimeException("Password cannot contain spaces");
+    // check if user enabled
+    if ( ! user.getEnabled() ) {
+      throw new AuthenticationException("User disabled");
     }
 
-    int length = newPassword.length();
-    if ( length < 7 || length > 32 ) {
-      throw new RuntimeException("Password must be 7-32 characters long");
+    // check if user login enabled
+    if ( ! user.getLoginEnabled() ) {
+      throw new AuthenticationException("Login disabled");
     }
 
-    if ( newPassword.equals(newPassword.toLowerCase()) ) {
-      throw new RuntimeException("Password must have one capital letter");
+    // check if user group enabled
+    Group group = (Group) groupDAO_.find(user.getGroup());
+    if ( group != null && ! group.getEnabled() ) {
+      throw new AuthenticationException("User group disabled");
     }
 
-    if ( ! newPassword.matches(".*\\d+.*") ) {
-      throw new RuntimeException("Password must have one numeric character");
-    }
-
-    if ( alphanumeric.matcher(newPassword).matches() ) {
-      throw new RuntimeException("Password must not contain: !@#$%^&*()_+");
-    }
+    // check if password is valid per validatePassword method
+    validatePassword(newPassword);
 
     // old password does not match
     if ( ! Password.verify(oldPassword, user.getPassword()) ) {
@@ -260,12 +340,15 @@ public class UserAndGroupAuthService
     }
 
     // store new password in DAO and put in context
+    user = (User) user.fclone();
     user.setPasswordLastModified(Calendar.getInstance().getTime());
     user.setPreviousPassword(user.getPassword());
     user.setPassword(Password.hash(newPassword));
+    // TODO: modify line to allow actual setting of password expiry in cases where users are required to periodically update their passwords
+    user.setPasswordExpiry(null);
     user = (User) userDAO_.put(user);
     session.setContext(session.getContext().put("user", user));
-    return (User) Password.sanitize(user);
+    return user;
   }
 
   /**
@@ -298,9 +381,7 @@ public class UserAndGroupAuthService
       throw new AuthenticationException("Password is required for creating a user");
     }
 
-    if ( ! Password.isValid(user.getPassword()) ) {
-      throw new AuthenticationException("Password needs to minimum 8 characters, contain at least one uppercase, one lowercase and a number");
-    }
+    validatePassword(user.getPassword());
   }
 
   /**

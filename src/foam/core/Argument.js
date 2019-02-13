@@ -23,42 +23,83 @@ foam.CLASS({
 
   properties: [
     {
+      /** The name of the argument */
       name: 'name'
     },
     {
       name: 'type'
     },
     {
-      name: 'of'
+      name: 'of',
+      postSet: function(_, of) {
+        console.warn("Deprecated usaged of Argument.of", this.name, of);
+        this.type = of;
+      }
     },
     {
+      class: 'Boolean',
       name: 'optional',
       value: false
     },
     {
-      name: 'javaType',
-      factory: function() {
-        return foam.java.Util.toJavaType(this.type);
-      }
+      class: 'String',
+      name: 'documentation',
+      value: ''
     }
   ]
 });
 
 foam.CLASS({
-  refines: 'foam.core.Method',
+  package: 'foam.core',
+  name: 'MethodArgumentRefine',
+  refines: 'foam.core.AbstractMethod',
   properties: [
     {
       class: 'FObjectArray',
       of: 'foam.core.Argument',
       name: 'args',
       adaptArrayElement: function(e, obj) {
+        var ctx = obj.__subContext__ || foam;
         var of = e.class || this.of;
-        var cls = (obj.__subContext__ || foam).lookup(of);
+        var cls = ctx.lookup(of);
 
-        return foam.core.FObject.isInstance(e) ? e :
+        return cls.isInstance(e) ? e :
           foam.String.isInstance(e) ? cls.create({ name: e }) :
           cls.create(e, obj);
       }
     }
+  ]
+});
+
+foam.CLASS({
+  refines: 'foam.core.AbstractMethod',
+  package: 'foam.core',
+  name: 'CreateChildRefines',
+  documentation: `
+    Overwrites the createChildMethod_ to merge in details from the parent method
+    into the child method like return types, arguments, and any other method
+    properties. This allows a model to not need to list these details when
+    implementing an interface or overriding a parent's method.
+  `,
+  methods: [
+    function createChildMethod_(child) {
+      var result = child.clone();
+      var props = child.cls_.getAxiomsByClass(foam.core.Property);
+      for ( var i = 0 ; i < props.length ; i++ ) {
+        var prop = props[i];
+        if ( this.hasOwnProperty(prop.name) && ! child.hasOwnProperty(prop.name) ) {
+          prop.set(result, prop.get(this));
+        }
+      }
+
+      // Special merging behaviour for args.
+      var i = 0;
+      var resultArgs = [];
+      for ( ; i < this.args.length ; i++ ) resultArgs.push(this.args[i].clone().copyFrom(child.args[i]));
+      for ( ; i < child.args.length ; i++ ) resultArgs.push(child.args[i]);
+      result.args = resultArgs; // To trigger the adaptArrayElement
+
+      return result;
+    },
   ]
 });

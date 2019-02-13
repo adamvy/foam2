@@ -6,35 +6,43 @@
 
 package foam.nanos.boot;
 
-import foam.core.Detachable;
-import foam.core.ProxyX;
-import foam.core.SingletonFactory;
-import foam.core.X;
+import foam.core.*;
 import foam.dao.AbstractSink;
 import foam.dao.DAO;
-import foam.dao.JDAO;
 import foam.dao.ProxyDAO;
+import foam.dao.java.JDAO;
 import foam.nanos.auth.User;
+import foam.nanos.logger.Logger;
+import foam.nanos.logger.ProxyLogger;
+import foam.nanos.logger.StdoutLogger;
 import foam.nanos.script.Script;
 import foam.nanos.session.Session;
+
+import java.util.List;
 
 import static foam.mlang.MLang.EQ;
 
 public class Boot {
+  // Context key used to store the top-level root context in the context.
+  public final static String ROOT = "_ROOT_";
+
   protected DAO serviceDAO_;
-  protected X   root_;
+  protected X   root_ = new ProxyX();
 
   public Boot() {
-    this(foam.core.EmptyX.instance());
+    this("");
   }
 
-  public Boot(foam.core.X x) {
-    root_ = new ProxyX(x);
+  public Boot(String datadir) {
+    Logger logger = new ProxyLogger(new StdoutLogger());
+    root_.put("logger", logger);
 
-    root_.
-      put(foam.nanos.fs.Storage.class,
-          new foam.nanos.fs.Storage((String)x.get("--datadir")));
+    if ( datadir == null || datadir == "" ) {
+      datadir = System.getProperty("JOURNAL_HOME");
+    }
 
+    root_.put(foam.nanos.fs.Storage.class,
+        new foam.nanos.fs.Storage(datadir));
 
     // Used for all the services that will be required when Booting
     serviceDAO_ = new JDAO(((foam.core.ProxyX) root_).getX(), NSpec.getOwnClassInfo(), "services");
@@ -45,26 +53,52 @@ public class Boot {
       @Override
       public void put(Object obj, Detachable sub) {
         NSpec sp = (NSpec) obj;
-        System.out.println("Registering: " + sp.getName());
+        logger.info("Registering:", sp.getName());
         root_.putFactory(sp.getName(), new SingletonFactory(new NSpecFactory((ProxyX) root_, sp)));
       }
     });
 
-    /**
-     * Revert root_ to non ProxyX to avoid letting children add new bindings.
-     */
+    serviceDAO_.listen(new AbstractSink() {
+      @Override
+      public void put(Object obj, Detachable sub) {
+        NSpec sp = (NSpec) obj;
+        FObject newService = sp.getService();
+
+        if ( newService != null ) {
+          logger.info("Updating service configuration: ", sp.getName());
+
+          FObject service = (FObject) root_.get(sp.getName());
+          List<PropertyInfo> props = service.getClassInfo().getAxioms();
+          for (PropertyInfo prop : props) {
+            prop.set(service, prop.get(newService));
+          }
+        }
+      }
+    }, null);
+
+    // Use an XFactory so that the root context can contain itself.
+    root_ = root_.putFactory(ROOT, new XFactory() {
+      public Object create(X x) {
+        return Boot.this.getX();
+      }
+    });
+
+    // Revert root_ to non ProxyX to avoid letting children add new bindings.
     root_ = ((ProxyX) root_).getX();
 
     // Export the ServiceDAO
     ((ProxyDAO) root_.get("nSpecDAO")).setDelegate(
-        new foam.dao.PMDAO(new foam.dao.AuthenticatedDAO("service", false, serviceDAO_)));
+        new foam.dao.PMDAO(root_, new foam.dao.AuthenticatedDAO("service", false, serviceDAO_)));
+    // 'read' authenticated version - for dig and docs
+    ((ProxyDAO) root_.get("AuthenticatedNSpecDAO")).setDelegate(
+        new foam.dao.PMDAO(root_, new foam.dao.AuthenticatedDAO("service", true, (DAO) root_.get("nSpecDAO"))));
 
     serviceDAO_.where(EQ(NSpec.LAZY, false)).select(new AbstractSink() {
       @Override
       public void put(Object obj, Detachable sub) {
         NSpec sp = (NSpec) obj;
 
-        System.out.println("Starting: " + sp.getName());
+        logger.info("Starting:", sp.getName());
         root_.get(sp.getName());
       }
     });
@@ -100,27 +134,25 @@ public class Boot {
   {
     System.out.println("Starting Nanos Server");
 
-    foam.core.X x = foam.core.EmptyX.instance();
+    boolean datadirFlag = false;
 
-    boolean valueFlag = false;
-    String argName = null;
+    String datadir = "";
     for ( int i = 0 ; i < args.length ; i++ ) {
       String arg = args[i];
-      if ( valueFlag ) {
-        x = x.put(argName, arg);
-        valueFlag = false;
-      } else if ( arg.startsWith("--") ) {
-        if ( arg.indexOf("=") == -1 ) {
-          argName = arg;
-          valueFlag = true;
-          continue;
-        }
-        int end = arg.indexOf("=");
-        argName = arg.substring(0, end);
-        x = x.put(argName, arg.substring(end + 1));
-        continue;
+
+      if ( datadirFlag ) {
+        datadir = arg;
+        datadirFlag = false;
+      } else if ( arg.equals("--datadir") ) {
+        datadirFlag = true;
+      } else {
+        System.err.println("Unknown argument " + arg);
+        System.exit(1);
       }
     }
-    new Boot(x);
+
+    System.out.println("Datadir is " + datadir);
+
+    new Boot(datadir);
   }
 }

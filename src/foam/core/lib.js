@@ -25,10 +25,8 @@ foam.next$UID = (function() {
   return function next$UID() { return id++; };
 })(),
 foam.isEnabled = function(flags) {
-  return ! flags ||
-    ! global.FOAM_FLAGS ||
-    ! flags.length ||
-    flags.some(function(f) { return global.FOAM_FLAGS[f]; });
+  return ! flags || ! flags.length ||
+    flags.some(function(f) { return foam.FLAGS[f]; });
 };
 foam.SCRIPT = function(m) {
   if ( foam.isEnabled(m.flags) ) {

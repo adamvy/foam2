@@ -5,35 +5,44 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'RequiresSwiftRefinement',
   refines: 'foam.core.Requires',
+  flags: ['swift'],
   requires: [
     'foam.swift.Argument',
     'foam.swift.Method',
   ],
   properties: [
     {
-      name: 'swiftReturns',
+      name: 'swiftType',
       expression: function(path) {
-        return this.lookup(path).model_.swiftName;
+        return path.replace(/\./g, '_');
       },
     },
   ],
   methods: [
-    function writeToSwiftClass(cls) {
-      if (foam.core.InterfaceModel.isInstance(this.lookup(this.path).model_)) {
+    function writeToSwiftClass(cls, parentCls) {
+      if ( ! parentCls.hasOwnAxiom(this.name) ) return;
+      if (foam.core.InterfaceModel.isInstance(this.__context__.lookup(this.path).model_)) {
         return;
       }
       // TODO skip refines.
       cls.methods.push(this.Method.create({
         name: this.name + '_create',
-        returnType: this.swiftReturns,
+        returnType: this.swiftType,
         visibility: 'public',
-	body: this.swiftInitializer(),
+        body: this.swiftInitializer(),
         args: [
           this.Argument.create({
             localName: 'args',
             defaultValue: '[:]',
             type: '[String:Any?]',
+          }),
+          this.Argument.create({
+            localName: 'x',
+            defaultValue: 'nil',
+            type: 'Context?',
           }),
         ],
       }));
@@ -44,7 +53,7 @@ foam.CLASS({
       name: 'swiftInitializer',
       args: [],
       template: function() {/*
-return __subContext__.create(<%=this.swiftReturns%>.self, args: args)!
+return (x ?? __subContext__).create(<%=this.swiftType%>.self, args: args)!
       */},
     },
   ],

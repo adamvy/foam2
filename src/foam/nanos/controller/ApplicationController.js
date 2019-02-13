@@ -19,7 +19,6 @@
   Accessible through browser at location path static/foam2/src/foam/nanos/controller/index.html
   Available on browser console as ctrl. (exports axiom)
 */
-
 foam.CLASS({
   package: 'foam.nanos.controller',
   name: 'ApplicationController',
@@ -28,18 +27,24 @@ foam.CLASS({
   documentation: 'FOAM Application Controller.',
 
   implements: [
-    'foam.nanos.client.Client'
+    'foam.box.Context',
+    'foam.nanos.controller.AppStyles'
   ],
 
   requires: [
+    'foam.nanos.client.ClientBuilder',
     'foam.nanos.auth.Group',
-    'foam.nanos.auth.User',
     'foam.nanos.auth.ResendVerificationEmail',
-    'foam.nanos.u2.navigation.TopNavigation',
     'foam.nanos.auth.SignInView',
-    'foam.u2.stack.Stack',
+    'foam.nanos.auth.User',
     'foam.nanos.auth.resetPassword.ResetView',
-    'foam.u2.stack.StackView'
+    'foam.nanos.u2.navigation.TopNavigation',
+    'foam.nanos.u2.navigation.FooterView',
+    'foam.u2.stack.Stack',
+    'foam.u2.stack.StackView',
+    'foam.u2.dialog.NotificationMessage',
+    'foam.nanos.session.SessionTimer',
+    'foam.u2.dialog.Popup'
   ],
 
   imports: [
@@ -49,19 +54,29 @@ foam.CLASS({
   ],
 
   exports: [
+    'appConfig',
     'as ctrl',
+    'currentMenu',
     'group',
+    'lastMenuLaunched',
+    'lastMenuLaunchedListener',
     'loginSuccess',
     'logo',
+    'menuListener',
+    'notify',
+    'pushMenu',
     'requestLogin',
     'signUpEnabled',
     'stack',
-    'currentMenu',
-    'menuListener',
     'user',
     'webApp',
-    'wrapCSS as installCSS'
+    'wrapCSS as installCSS',
+    'sessionTimer'
   ],
+
+  constants: {
+    MACROS: [ 'primaryColor', 'secondaryColor', 'tableColor', 'tableHoverColor', 'accentColor', 'secondaryHoverColor', 'secondaryDisabledColor', 'groupCSS' ]
+  },
 
   css: `
     body {
@@ -72,19 +87,42 @@ foam.CLASS({
       background: #edf0f5;
       margin: 0;
     }
-
+    .foam-u2-UnstyledActionView-signIn {
+      margin-left: 25px !important;
+    }
     .stack-wrapper {
       margin-bottom: -10px;
       min-height: calc(80% - 60px);
     }
-
     .stack-wrapper:after {
       content: "";
       display: block;
     }
+    .foam-u2-UnstyledActionView:focus{
+      outline: none;
+    }
   `,
 
   properties: [
+    {
+      name: 'clientPromise',
+      factory: function() {
+        var self = this;
+        return self.ClientBuilder.create().promise.then(function(cls) {
+          self.client = cls.create(null, self);
+          return self.client;
+        });
+      },
+    },
+    {
+      name: 'client',
+    },
+    {
+      name: 'appConfig',
+      expression: function(client) {
+        return client && client.appConfig || null;
+      }
+    },
     {
       name: 'stack',
       factory: function() { return this.Stack.create(); }
@@ -104,8 +142,8 @@ foam.CLASS({
     {
       class: 'Boolean',
       name: 'signUpEnabled',
-      adapt: function(v) {
-        return v === 'false' ? false : true;
+      adapt: function(_, v) {
+        return foam.String.isInstance(v) ? v !== 'false' : v;
       }
     },
     {
@@ -113,59 +151,85 @@ foam.CLASS({
       name: 'loginSuccess'
     },
     { class: 'URL', name: 'logo' },
+    {
+      class: 'FObjectProperty',
+      of: 'foam.nanos.session.SessionTimer',
+      name: 'sessionTimer',
+      factory: function () {
+        return this.SessionTimer.create();
+      }
+    },
     'currentMenu',
+    'lastMenuLaunched',
     'webApp',
     'primaryColor',
     'secondaryColor',
+    'secondaryHoverColor',
+    'secondaryDisabledColor',
     'tableColor',
     'tableHoverColor',
-    'accentColor'
+    'accentColor',
+    'groupCSS',
+    'topNavigation_',
+    'footerView_'
   ],
 
   methods: [
     function init() {
       this.SUPER();
       var self = this;
+      self.clientPromise.then(function(client) {
+        self.setPrivate_('__subContext__', client.__subContext__);
+        foam.__context__.register(foam.u2.UnstyledActionView, 'foam.u2.ActionView');
+        self.getCurrentUser();
 
-      this.getCurrentUser();
+        window.onpopstate = function(event) {
+          if ( location.hash != null) {
+            var hid = location.hash.substr(1);
 
-      window.onpopstate = function(event) {
-        if ( location.hash != null ) {
-          var hid = location.hash.substr(1);
-
-          hid && self.menuDAO.find(hid).then(function(menu) {
-            menu && menu.launch(this, null);
-          });
-        }
-      };
-
-      window.onpopstate();
+            hid && self.client.menuDAO.find(hid).then(function(menu) {
+              menu && menu.launch(this, null);
+            });
+          }
+        };
+      });
     },
 
     function initE() {
-      this
-        .addClass(this.myClass())
-        .tag({class: 'foam.nanos.u2.navigation.TopNavigation'})
-        .start('div').addClass('stack-wrapper')
-          .tag({class: 'foam.u2.stack.StackView', data: this.stack, showActions: false})
-        .end();
+      var self = this;
+      self.clientPromise.then(function() {
+        self
+          .addClass(self.myClass())
+          .start('div', null, self.topNavigation_$).end()
+          .start('div').addClass('stack-wrapper')
+            .tag({class: 'foam.u2.stack.StackView', data: self.stack, showActions: false})
+          .end()
+          .start('div', null, self.footerView_$).end();
+
+          // Sets up application view
+          self.topNavigation_.add(self.TopNavigation.create());
+          self.footerView_.add(self.FooterView.create());
+      });
     },
 
-    function setDefaultMenu() {
-      // Don't select default if menu already set
-      if ( this.window.location.hash || ! this.user.group ) return;
+    function setPortalView(group) {
+      // Replaces contents of top navigation and footer view with group views
+      this.topNavigation_ && this.topNavigation_.replaceChild(
+        foam.lookup(group.topNavigation).create(null, this),
+        this.topNavigation_.children[0]
+      );
 
-      this.groupDAO.find(this.user.group).then(function (group) {
-        this.group.copyFrom(group);
-        this.window.location.hash = group.defaultMenu;
-      }.bind(this));
+      this.footerView_ && this.footerView_.replaceChild(
+        foam.lookup(group.footerView).create(null, this),
+        this.footerView_.children[0]
+      );
     },
 
     function getCurrentUser() {
       var self = this;
 
       // get current user, else show login
-      this.auth.getCurrentUser(null).then(function (result) {
+      this.client.auth.getCurrentUser(null).then(function (result) {
         self.loginSuccess = !! result;
         if ( result ) {
           self.user.copyFrom(result);
@@ -183,6 +247,24 @@ foam.CLASS({
       });
     },
 
+    function expandShortFormMacro(css, m) {
+      /* A short-form macros is of the form %PRIMARY_COLOR%. */
+      var M = m.toUpperCase();
+
+      return css.replace(
+        new RegExp("%" + M + "%", 'g'),
+        '/*%' + M + '%*/ ' + this[m]);
+    },
+
+    function expandLongFormMacro(css, m) {
+      // A long-form macros is of the form "/*%PRIMARY_COLOR%*/ blue".
+      var M = m.toUpperCase();
+
+      return css.replace(
+        new RegExp('/\\*%' + M + '%\\*/[^;]*', 'g'),
+        '/*%' + M + '%*/ ' + this[m]);
+    },
+
     // CSS preprocessor, works on classes instantiated in subContext
     function wrapCSS(text, id) {
       if ( text ) {
@@ -195,14 +277,30 @@ foam.CLASS({
           });
         }
 
-        this.installCSS(text.
-          replace(/%PRIMARYCOLOR%/g,    this.primaryColor).
-          replace(/%SECONDARYCOLOR%/g,  this.secondaryColor).
-          replace(/%TABLECOLOR%/g,      this.tableColor).
-          replace(/%TABLEHOVERCOLOR%/g, this.tableHoverColor).
-          replace(/%ACCENTCOLOR%/g,     this.accentColor),
-          id);
+        let eid = foam.u2.Element.NEXT_ID();
+
+        for ( var i = 0 ; i < this.MACROS.length ; i++ ) {
+          let m     = this.MACROS[i];
+          var text2 = this.expandShortFormMacro(this.expandLongFormMacro(text, m), m);
+
+            // If the macro was found, then listen for changes to the property
+            // and update the CSS if it changes.
+            if ( text != text2 ) {
+              text = text2;
+              this.slot(m).sub(function() {
+                var el = this.getElementById(eid);
+                el.innerText = this.expandLongFormMacro(el.innerText, m);
+              }.bind(this));
+            }
+        }
+
+        this.installCSS(text, id, eid);
       }
+    },
+
+    function pushMenu(menuId) {
+      /** Use to load a specific menu. **/
+      if ( window.location.hash.substr(1) != menuId ) window.location.hash = menuId;
     },
 
     function requestLogin() {
@@ -219,16 +317,46 @@ foam.CLASS({
         self.stack.push({ class: 'foam.nanos.auth.SignInView' });
         self.loginSuccess$.sub(resolve);
       });
+    },
+
+    // This method is for toast notification message
+    function notify(message, type) {
+      this.add(this.NotificationMessage.create({ message, type }));
     }
   ],
 
   listeners: [
-    function onUserUpdate() {
-      this.setDefaultMenu();
+    async function onUserUpdate() {
+      var group = await this.client.groupDAO.find(this.user.group);
+
+      this.group.copyFrom(group);
+      this.setPortalView(group);
+
+      for ( var i = 0; i < this.MACROS.length; i++ ) {
+        var m = this.MACROS[i];
+        if ( group[m] ) this[m] = group[m];
+      }
+
+      var hash = this.window.location.hash;
+      if ( hash ) hash = hash.substring(1);
+
+      if ( hash ) {
+        window.onpopstate();
+      } else if ( group ) {
+        this.window.location.hash = group.defaultMenu;
+      }
     },
 
+    // This listener should be called when a Menu item has been launched
+    // by some Menu View. Is exported.
     function menuListener(m) {
       this.currentMenu = m;
+    },
+
+    // This listener should be called when a Menu has been launched but does
+    // not navigate to a new screen. Typically for SubMenus
+    function lastMenuLaunchedListener(m) {
+      this.lastMenuLaunched = m;
     }
   ]
 });

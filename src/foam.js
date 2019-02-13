@@ -23,7 +23,7 @@
 
   var foam = scope.foam = scope.foam || {};
 
-  scope.foam.FLAGS = global.FOAM_FLAGS ||
+  scope.foam.FLAGS = scope.FOAM_FLAGS ||
     {
       web: ! isServer,
       node: isServer,
@@ -35,7 +35,7 @@
 
   function loadBrowser(path) {
     document.writeln(
-      '<script type="text/javascript" src="' + path + '.js"></script>\n');
+      '<script type="text/javascript" src="' + path + '"></script>\n');
   }
 
   function loadServer(path) {
@@ -70,5 +70,21 @@
     loader(path);
   };
 
-  foam.LOAD_FILES(__dirname + '/FILES.js');
+
+  var root;
+  if ( ! isServer && ! isWorker ) {
+    var foamscript = Array.from(document.getElementsByTagName('script')).find(function(s) {
+      return s.src.match(/\/foam.js$/);
+    }).src;
+    root = foamscript.substring(0, foamscript.lastIndexOf('/') + 1);
+  } else if ( isServer ) {
+    root = __dirname + '/';
+  } else if ( scope.FOAM_ROOT ) {
+    root = scope.FOAM_ROOT;
+    if ( root[root.length - 1] != '/' ) root += '/';
+  } else {
+    throw new Error("Unable to determine foam root directory, try setting FOAM_ROOT globally.");
+  }
+
+  foam.LOAD_FILES(root + 'FILES.js');
 })();

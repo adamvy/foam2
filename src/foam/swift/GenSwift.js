@@ -27,6 +27,7 @@ foam.CLASS({
     {
       name: 'coreModels',
       value: [
+        'foam.core.Detachable',
         'foam.core.EventProxy',
         'foam.mlang.order.Comparator',
         'foam.mlang.predicate.Predicate',
@@ -52,6 +53,7 @@ foam.CLASS({
         'foam.swift.parse.json.PropertyParser',
         'foam.swift.parse.json.UnknownPropertyParser',
         'foam.swift.parse.json.output.Outputter',
+        'foam.json2.PrettyOutputterOutput',
         'foam.swift.parse.parser.Alt',
         'foam.swift.parse.parser.AnyChar',
         'foam.swift.parse.parser.Chars',
@@ -73,9 +75,12 @@ foam.CLASS({
       value: [
         'FObject',
         'foam.core.AbstractInterface',
-        'foam.core.AbstractEnum',
-        'foam.box.RPCReturnBox',
         'foam.swift.ui.AbstractGenIBOutletDetailView',
+        'foam.core.Property',
+        'foam.dao.index.TreeIndex',
+        'foam.swift.SwiftClass',
+        'foam.swift.Method',
+        'foam.swift.Field',
       ],
     },
     {
@@ -98,11 +103,17 @@ foam.CLASS({
         process.exit(1);
       }
       self.fs.mkdirSync(this.outdir);
-      var promises = [];
-      this.coreModels.concat(this.models).forEach(function(m) {
-        promises.push(self.classloader.load(m));
-      })
-      return Promise.all(promises).then(function() {
+
+      with ( foam.cps ) {
+        var p = new Promise(
+          compose(
+            map(awrap(self.classloader.load.bind(self.classloader))),
+            value(self.coreModels.concat(self.models))
+          )
+        )
+      }
+
+      return p.then(function() {
         var sep = require('path').sep;
         var models = {};
         var queue = self.models.concat(self.coreModels);
@@ -110,7 +121,7 @@ foam.CLASS({
           var model = queue.pop();
           if (!models[model]) {
             models[model] = 1;
-            var cls = self.lookup(model);
+            var cls = foam.lookup(model);
             cls.getAxiomsByClass(foam.core.Requires).filter(axiomFilter).forEach(function(r) {
               queue.push(r.path);
             });
@@ -127,7 +138,7 @@ foam.CLASS({
 
         var classes = [];
         for (var i = 0; i < models.length; i++) {
-          var cls = self.lookup(models[i], self);
+          var cls = self.__context__.lookup(models[i], self);
           var swiftClass = cls.toSwiftClass();
           if (swiftClass.getMethod && swiftClass.getMethod('classInfo')) {
             classes.push(swiftClass.name);

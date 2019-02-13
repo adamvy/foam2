@@ -7,6 +7,13 @@ foam.CLASS({
   package: 'foam.nanos.boot',
   name: 'NSpec',
 
+  requires: [
+    {
+      path: 'foam.comics.BrowserView',
+      flags: ['web'],
+    },
+  ],
+
   javaImports: [
     'bsh.EvalError',
     'bsh.Interpreter',
@@ -23,6 +30,11 @@ foam.CLASS({
       class: 'String',
       name: 'name',
       tableWidth: 460
+    },
+    {
+      class: 'String',
+      name: 'description',
+      width: 80
     },
     {
       class: 'Boolean',
@@ -69,6 +81,34 @@ foam.CLASS({
       }
     },
     {
+      class: 'Boolean',
+      name: 'parameters',
+      value: false,
+      tableCellFormatter: function(value, obj, property) {
+        this
+          .start()
+            .call(function() {
+              if ( value ) { this.style({color: 'green'}); }
+            })
+            .add(value ? ' Y' : '-')
+          .end();
+      }
+    },
+    {
+      class: 'Boolean',
+      name: 'pm',
+      value: true,
+      tableCellFormatter: function(value, obj, property) {
+        this
+          .start()
+            .call(function() {
+              if ( value ) { this.style({color: 'green'}); }
+            })
+            .add(value ? ' Y' : '-')
+          .end();
+      }
+    },
+    {
       class: 'String',
       name: 'serviceClass',
       displayWidth: 80
@@ -101,8 +141,8 @@ foam.CLASS({
     {
       name: 'saveService',
       args: [
-        { name: 'x', javaType: 'foam.core.X' },
-        { name: 'service', javaType: 'Object' }
+        { name: 'x', type: 'Context' },
+        { name: 'service', type: 'Any' }
       ],
       javaCode: `
       /*
@@ -118,9 +158,9 @@ foam.CLASS({
     {
       name: 'createService',
       args: [
-        { name: 'x', javaType: 'foam.core.X' }
+        { name: 'x', type: 'Context' }
       ],
-      javaReturns: 'java.lang.Object',
+      javaType: 'java.lang.Object',
       javaCode: `
         if ( getService() != null ) return getService();
 
@@ -158,8 +198,8 @@ foam.CLASS({
       // for now, but should get the config object from the NSpec itself
       // to be extensible.
       name: 'configure',
-      isAvailable: function(boxClass) {
-        return ! boxClass;
+      isAvailable: function(boxClass, serve) {
+        return serve && ! boxClass;
 //        return foam.dao.DAO.isInstance(this.__context__[this.name]);
       },
       code: function() {
@@ -167,6 +207,9 @@ foam.CLASS({
         if ( foam.dao.DAO.isInstance(service) ) {
           this.__context__.stack.push({
             class: 'foam.comics.BrowserView',
+            createEnabled: true,
+            editEnabled: true,
+            exportEnabled: true,
             data: service
           });
         }

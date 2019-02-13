@@ -7,21 +7,21 @@
 package foam.core;
 
 import foam.dao.pg.IndexedPreparedStatement;
+import foam.lib.xml.Outputter;
 import foam.nanos.logger.Logger;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.sql.SQLException;
 import java.util.Map;
+import javax.xml.stream.XMLStreamException;
+import javax.xml.stream.XMLStreamReader;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 public abstract class AbstractPropertyInfo
-    implements PropertyInfo
+  implements PropertyInfo
 {
   protected ClassInfo parent;
 
@@ -47,6 +47,11 @@ public abstract class AbstractPropertyInfo
   }
 
   @Override
+  public void toXML(foam.lib.xml.Outputter outputter, Object value) {
+    outputter.output(value);
+  }
+
+  @Override
   public foam.mlang.Expr partialEval() {
     return this;
   }
@@ -66,6 +71,23 @@ public abstract class AbstractPropertyInfo
     }
   }
 
+  @Override
+  public boolean hardDiff(FObject o1, FObject o2, FObject diff){
+    // compare the property value of o1 and o2
+    // If value is Object reference, only compare reference. (AbstractObjectPropertyInfo will override hardDiff method)
+    // use to compare String and primitive type
+    int same = this.comparePropertyToValue(this.get(o1), this.get(o2));
+    //return the value of o2 if o1 and o2 are different
+    if ( same != 0 ) {
+      //set o2 prop into diff
+      this.set(diff, this.get(o2));
+      return true;
+    } else {
+      //return null if o1 and o2 are same
+      return false;
+    }
+  }
+
   public void setFromString(Object obj, String value) {
     this.set(obj, fromString(value));
   }
@@ -80,16 +102,6 @@ public abstract class AbstractPropertyInfo
       logger.error("Premature end of XML file");
     }
     return "";
-  }
-
-  @Override
-  public void toXML(FObject obj, Document doc, Element objElement) {
-    Object value = this.f(obj);
-    if ( value != null && value != "" ) {
-      Element prop = doc.createElement(this.getName());
-      prop.appendChild(doc.createTextNode(value.toString()));
-      objElement.appendChild(prop);
-    }
   }
 
   @Override
@@ -113,10 +125,30 @@ public abstract class AbstractPropertyInfo
   }
 
   @Override
-  public void validate(FObject obj) throws IllegalStateException {}
+  public void validate(X x, FObject obj) throws IllegalStateException {}
+
+  @Override
+  public boolean includeInDigest() {
+    return true;
+  }
 
   @Override
   public void updateDigest(FObject obj, MessageDigest md) {}
+
+  @Override
+  public boolean includeInSignature() {
+    return true;
+  }
+
+  @Override
+  public boolean containsPII(){
+    return false;
+  }
+
+  @Override
+  public boolean containsDeletablePII(){
+    return false;
+  }
 
   @Override
   public void updateSignature(FObject obj, Signature sig) throws SignatureException {}

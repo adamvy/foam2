@@ -56,7 +56,7 @@ return self.LookupBox_create([
   methods: [
     {
       name: 'getParentBox',
-      returns: 'foam.box.Box',
+      type: 'foam.box.Box',
       code: function() {
         return this.cls_.create({
           name: this.name.substring(0, this.name.lastIndexOf('/'))
@@ -69,12 +69,12 @@ if let index = self.name.range(of: "/", options: .backwards)?.lowerBound {
 }
 return ownClassInfo().create(args: [
   "name": name
-], x: __subContext__) as! Box
+], x: __subContext__) as! foam_box_Box
       */},
     },
     {
       name: 'getBaseName',
-      returns: 'String',
+      type: 'String',
       code: function getBaseName() {
         return this.name.substring(this.name.lastIndexOf('/') + 1);
       },

@@ -18,23 +18,21 @@
 foam.INTERFACE({
   package: 'foam.net.node',
   name: 'Handler',
-
+  flags: ['node'],
   methods: [
     {
       name: 'handle',
       args: [
         {
           name: 'req',
-          documentation: 'Node JS HTTP request object.',
-          typeName: 'http.IncomingMessage',
+          documentation: 'Node JS HTTP request object. http.IncomingMessage',
         },
         {
           name: 'res',
-          documentation: 'Node JS HTTP response object.',
-          typeName: 'http.ServerResponse',
+          documentation: 'Node JS HTTP response object. http.ServerResponse',
         },
       ],
-      returns: 'Boolean',
+      type: 'Boolean',
       code: function(req, res) {}
     }
   ],
@@ -47,14 +45,10 @@ foam.INTERFACE({
         {
           name: 'route',
           documentation: `Route being bound to this handler.`,
-          typeName: 'foam.net.node.Route'
+          type: 'foam.net.node.Route'
         }
       ],
-      returns: {
-        documentation: `The appropriately configured Handler that has been
-            bound to "route".`,
-        typeName: 'foam.net.node.Handler',
-      }
+      type: 'foam.net.node.Handler'
     }
   ]
 });

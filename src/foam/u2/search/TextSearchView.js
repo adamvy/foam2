@@ -21,10 +21,14 @@ foam.CLASS({
   extends: 'foam.u2.View',
 
   requires: [
-    'foam.mlang.predicate.ContainsIC',
     'foam.mlang.predicate.True',
+    'foam.mlang.predicate.False',
     'foam.parse.QueryParser',
     'foam.u2.tag.Input'
+  ],
+
+  implements: [
+    'foam.mlang.Expressions'
   ],
 
   properties: [
@@ -34,13 +38,20 @@ foam.CLASS({
     },
     {
       class: 'Boolean',
-      name: 'richSearch',
-      value: false
+      name: 'richSearch'
     },
     {
       class: 'Boolean',
-      name: 'keywordSearch',
-      value: false
+      name: 'keywordSearch'
+    },
+    {
+      class: 'Boolean',
+      name: 'checkStrictEquality',
+      documentation: `
+        Set this flag if you want to match by strict equality instead of
+        checking if the text contains the string. Doing so should improve
+        performance.
+      `
     },
     {
       name: 'queryParser',
@@ -77,6 +88,10 @@ foam.CLASS({
       // This defaults to 'query'.
       name: 'name',
       value: 'query'
+    },
+    {
+      class: 'Boolean',
+      name: 'onKey'
     }
   ],
 
@@ -84,7 +99,11 @@ foam.CLASS({
     function initE() {
       this
         .addClass(this.myClass())
-        .tag(this.viewSpec, { alwaysFloatLabel: true, label$: this.label$ }, this.view$);
+        .tag(this.viewSpec, {
+          alwaysFloatLabel: true,
+          label$: this.label$,
+          onKey: this.onKey
+        }, this.view$);
 
       this.view.data$.sub(this.updateValue);
     },
@@ -101,10 +120,15 @@ foam.CLASS({
       code: function() {
         var value = this.view.data;
         this.predicate = ! value ?
-            this.True.create() :
-            this.richSearch ?
-                this.queryParser.parseString(value) :
-                this.ContainsIC(this.property, value);
+          this.True.create() :
+          this.richSearch ?
+            this.OR(
+              this.queryParser.parseString(value) || this.False.create(),
+              this.KEYWORD(value)
+            ) :
+            this.checkStrictEquality ?
+              this.EQ(this.property, value) :
+              this.CONTAINS_IC(this.property, value);
       }
     }
   ]

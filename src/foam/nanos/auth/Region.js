@@ -10,9 +10,9 @@ foam.CLASS({
 
   documentation: 'Region (province/state) information.',
 
-  ids: [ 'code' ],
+  ids: ['code'],
 
-  searchColumns: [ ],
+  searchColumns: [],
 
   properties: [
     {
@@ -28,6 +28,10 @@ foam.CLASS({
       targetDAOKey: 'countryDAO',
       name: 'countryId',
       of: 'foam.nanos.auth.Country'
+    },
+    {
+      class: 'StringArray',
+      name: 'alternativeNames'
     }
   ]
 });

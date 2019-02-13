@@ -18,7 +18,6 @@
 foam.CLASS({
   package: 'foam.i18n',
   name: 'TranslationFormatStringParser',
-  flags: ['swift'],
   requires: [
     'foam.parse.Parsers',
     'foam.parse.ImperativeGrammar',

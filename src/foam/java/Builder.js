@@ -6,6 +6,7 @@
 foam.CLASS({
   package: 'foam.java',
   name: 'Builder',
+
   properties: [
     {
       class: 'FObjectArray',
@@ -13,6 +14,7 @@ foam.CLASS({
       name: 'properties'
     }
   ],
+
   methods: [
     function buildJavaClass(cls) {
       var builder = foam.java.Class.create();
@@ -81,7 +83,7 @@ return this;`
 `;
       }
 
-      buildBody += 'return obj;'
+      buildBody += 'obj.init_(); return obj;'
 
       builder.method({
         name: 'build',

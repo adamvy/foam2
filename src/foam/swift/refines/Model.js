@@ -5,7 +5,10 @@
  */
 
 foam.CLASS({
+  package: 'foam.swift.refines',
+  name: 'ModelSwiftRefinement',
   refines: 'foam.core.Model',
+  flags: ['swift'],
   requires: [
     'foam.swift.SwiftClass',
   ],
@@ -13,7 +16,10 @@ foam.CLASS({
     {
       class: 'String',
       name: 'swiftName',
-      expression: function(name) { return name; },
+      expression: function(id) {
+        // TODO: remove this property.
+        return foam.swift.toSwiftName(id);
+      },
     },
     {
       class: 'Boolean',
@@ -31,7 +37,7 @@ foam.CLASS({
         // TODO: This should be an expression on extends but putting extends in
         // the args makes js unhappy.
         if ( this.extends == 'FObject' ) return 'AbstractFObject';
-        return foam.lookup(this.extends).model_.swiftName;
+        return foam.swift.toSwiftType(this.extends)
       },
     },
     {
@@ -41,6 +47,19 @@ foam.CLASS({
     {
       class: 'String',
       name: 'swiftCode',
+    },
+  ],
+  methods: [
+    function swiftAllImplements() {
+      // Return a list of everything the model implements including swift
+      // specific protocols and models that are implemented.
+      return this.swiftImplements.concat(
+        ( this.implements || [] )
+        .filter(foam.util.flagFilter(['swift']))
+        .map(function(i) {
+          return foam.swift.toSwiftName(i.path)
+        })
+      );
     },
   ],
 });

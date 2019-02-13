@@ -21,12 +21,13 @@ foam.CLASS({
   extends: 'foam.u2.View',
 
   requires: [
-    'foam.comics.DAOCreateController'
+    'foam.comics.DAOCreateController',
+    'foam.u2.dialog.NotificationMessage'
   ],
 
   imports: [
-    'stack',
-    'dao'
+    'dao',
+    'stack'
   ],
 
   exports: [
@@ -56,17 +57,22 @@ foam.CLASS({
       expression: function(data$dao$of) {
         return 'Create ' + data$dao$of.name;
       }
+    },
+    {
+      class: 'String',
+      name: 'detailView'
     }
   ],
 
   reactions: [
-    [ 'data', 'finished', 'onFinished' ]
+    [ 'data', 'finished', 'onFinished' ],
+    [ 'data', 'throwError', 'onThrowError' ],
   ],
 
   methods: [
     function initE() {
       this.
-      addClass(this.myCls()).
+      addClass(this.myClass()).
       start('table').
         start('tr').
           start('td').style({'vertical-align': 'top', 'width': '100%'}).
@@ -78,7 +84,8 @@ foam.CLASS({
                 add(this.data.cls_.getAxiomsByClass(foam.core.Action)).
               end().
             end().
-            add(this.DAOCreateController.DATA).
+            tag({class: this.detailView}, {data: this.data.obj}).
+            add(this.data$.dot('data')).
           end().
         end().
       end();
@@ -93,6 +100,13 @@ foam.CLASS({
   listeners: [
     function onFinished() {
       this.stack.back();
+    },
+    function onThrowError() {
+      var self = this;
+      this.add(this.NotificationMessage.create({
+         message: self.data.exception.message,
+         type: 'error'
+      }));
     }
   ]
 });

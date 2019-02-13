@@ -88,8 +88,18 @@ foam.CLASS({
   name: 'Proxy',
   extends: 'Property',
 
+  requires: [
+    'foam.core.EventProxy',
+    'foam.core.ProxiedMethod',
+    'foam.core.ProxySub',
+  ],
+
   properties: [
     { name: 'of', required: true },
+    {
+      name: 'type',
+      factory: function() { return this.of; }
+    },
     {
       class: 'StringArray',
       name: 'topics'
@@ -121,7 +131,7 @@ foam.CLASS({
       this.SUPER(cls);
 
       var name     = this.name;
-      var delegate = this.lookup(this.of);
+      var delegate = this.__context__.lookup(this.of);
 
       function resolveName(name) {
         var m = delegate.getAxiomByName(name);
@@ -140,30 +150,33 @@ foam.CLASS({
       var axioms = [];
       for ( var i = 0 ; i < forwards.length ; i++ ) {
         var method = forwards[i];
-        axioms.push(foam.core.ProxiedMethod.create({
+        axioms.push(this.ProxiedMethod.create({
+          flags: this.flags,
           name: method.name,
           type: method.type,
-          javaType: method.javaType,
           property: name,
+          flags: this.flags,
           args: method.args
         }));
       }
 
       for ( var i = 0 ; i < delegates.length ; i++ ) {
         var method = delegates[i];
-        axioms.push(foam.core.ProxiedMethod.create({
+        axioms.push(this.ProxiedMethod.create({
+          flags: this.flags,
           name: method.name,
           type: method.type,
-          javaType: method.javaType,
           property: name,
           args: method.args,
+          flags: this.flags,
           delegate: true
         }));
       }
 
       if ( ! this.topics || this.topics.length ) {
-        axioms.push(foam.core.ProxySub.create({
+        axioms.push(this.ProxySub.create({
           topics: this.topics,
+          flags: this.flags,
           prop:   this.name
         }));
       }
@@ -201,7 +214,7 @@ foam.CLASS({
     },
     {
       name: 'code',
-      expression: function(name, property, returns, delegate) {
+      expression: function(name, property, type, delegate) {
         return delegate ?
             function delegate() {
               return this[property][name].apply(this, arguments);
@@ -262,14 +275,14 @@ if (oldValue as? Bool ?? false) != newValue {
     },
     {
       name: 'parent',
-      swiftType: 'EventProxy?',
+      swiftType: 'foam_core_EventProxy?',
     },
     {
       name: 'children',
       factory: function() {
         return {};
       },
-      swiftType: '[String:EventProxy]',
+      swiftType: '[String:foam_core_EventProxy]',
       swiftFactory: 'return [:]',
     },
     {
@@ -343,7 +356,7 @@ if let src = src as? Topic {
       args: [
         {
           name: 'c',
-          swiftType: 'EventProxy',
+          type: 'foam.core.EventProxy',
         },
       ],
       code: function removeChild(c) {
@@ -369,10 +382,10 @@ for (key, child) in children {
       args: [
         {
           name: 'key',
-          swiftType: 'String',
+          type: 'String',
         },
       ],
-      swiftReturns: 'EventProxy',
+      type: 'foam.core.EventProxy',
       code: function getChild(key) {
         if ( ! this.children[key] ) {
           this.children[key] = this.cls_.create({
@@ -386,7 +399,7 @@ for (key, child) in children {
       },
       swiftCode: `
 if children[key] == nil {
-  children[key] = __context__.create(EventProxy.self, args: [
+  children[key] = __context__.create(foam_core_EventProxy.self, args: [
     "parent": self,
     "dest": dest,
     "src": src,
@@ -402,7 +415,7 @@ return children[key]!
       args: [
         {
           name: 'topics',
-          swiftType: '[String]',
+          type: 'String[]',
         },
       ],
       code: function addProxy(topic) {

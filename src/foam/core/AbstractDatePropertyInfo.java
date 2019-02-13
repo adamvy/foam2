@@ -6,6 +6,9 @@
 
 package foam.core;
 
+import foam.lib.parse.ParserContextImpl;
+import foam.lib.parse.StringPStream;
+
 import javax.xml.stream.XMLStreamReader;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
@@ -35,28 +38,28 @@ public abstract class AbstractDatePropertyInfo
   }
 
   public Object fromString(String value) {
-    //  DateTimeFormatter formatter = DateTimeFormatter.ofPattern(getDateFormat()).withZone(ZoneOffset.UTC);		 +    return new Date(value);
-    //  LocalDateTime date = LocalDateTime.parse(value, formatter);
-    //  this.set(obj, Date.from(date.atZone(ZoneId.of("UTC")).toInstant()));
-    return new Date(value);
+    StringPStream ps = new StringPStream(value);
+    ParserContextImpl x = new ParserContextImpl();
+    ps = (StringPStream) jsonParser().parse(ps, x);
+    return ps == null ? null : ps.value();
   }
 
   @Override
   public Object fromXML(X x, XMLStreamReader reader) {
     super.fromXML(x, reader);
-    Date date = new Date(reader.getText());
-    return date;
+    return fromString(reader.getText());
   }
 
   @Override
   public void cloneProperty(FObject source, FObject dest) {
     Object value = get(source);
 
-    set(dest, value == null ? null : new Date(((Date)value).getTime()));
+    set(dest, value == null ? null : new Date(((Date) value).getTime()));
   }
 
   @Override
   public void updateDigest(FObject obj, MessageDigest md) {
+    if ( ! includeInDigest() ) return;
     Date date = (Date) get(obj);
     if ( date == null ) return;
 
@@ -66,6 +69,7 @@ public abstract class AbstractDatePropertyInfo
 
   @Override
   public void updateSignature(FObject obj, Signature sig) throws SignatureException {
+    if ( ! includeInSignature() ) return;
     Date date = (Date) get(obj);
     if ( date == null ) return;
 

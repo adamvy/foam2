@@ -23,6 +23,22 @@ foam.CLASS({
   properties: [
     ['anonymous', true],
     'propName',
+    'propShortName',
+    'propAliases',
+    'compare',
+    'comparePropertyToObject',
+    'comparePropertyToValue',
+    {
+      name: 'getAliasesBody',
+      expression: function() {
+      var b = 'new String[] {';
+        for ( var i = 0 ; i < this.propAliases.length ; i++ ) {
+          b += '"' + this.propAliases[i] + '"';
+          if ( i < this.propAliases.length-1 ) b += ', ';
+        }
+        return b + '};';
+      }
+    },
     {
       class: 'Boolean',
       name: 'networkTransient'
@@ -30,6 +46,10 @@ foam.CLASS({
     {
       class: 'Boolean',
       name: 'storageTransient'
+    },
+    {
+      class: 'Boolean',
+      name: 'permissionRequired'
     },
     {
       class: 'Boolean',
@@ -57,6 +77,28 @@ foam.CLASS({
         return 'set' + foam.String.capitalize(propName);
       }
     },
+    {
+      name: 'clearName',
+      expression: function(propName) {
+        return 'clear' + foam.String.capitalize(propName);
+      }
+    },
+    {
+      class: 'Boolean',
+      name: 'includeInDigest'
+    },
+    {
+      class: 'Boolean',
+      name: 'includeInSignature'
+    },
+    {
+      class: 'Boolean',
+      name: 'containsPII'
+    },
+    {
+      class: 'Boolean',
+      name: 'containsDeletablePII'
+    },
     'sourceCls',
     'propType',
     'propValue',
@@ -64,6 +106,8 @@ foam.CLASS({
     'jsonParser',
     'csvParser',
     'cloneProperty',
+    'queryParser',
+    'diffProperty',
     {
       name: 'methods',
       factory: function() {
@@ -75,73 +119,104 @@ foam.CLASS({
             body: 'return "' + this.propName + '";'
           },
           {
+            name: 'getShortName',
+            visibility: 'public',
+            type: 'String',
+            body: this.propShortName ?
+              'return "' + this.propShortName + '";' :
+              'return null;'
+          },
+          {
+            name: 'getAliases',
+            visibility: 'public',
+            type: 'String[]',
+            body: 'return ' + this.getAliasesBody
+          },
+          {
             name: 'get',
             visibility: 'public',
             type: 'Object',
-            args: [ { name: 'o', type: 'Object' } ],
+            args: [{ name: 'o', type: 'Object' }],
             body: 'return get_(o);'
           },
           {
             name: 'get_',
             type: this.propType,
             visibility: 'public',
-            args: [ { name: 'o', type: 'Object' } ],
+            args: [{ name: 'o', type: 'Object' }],
             body: 'return ((' + this.sourceCls.name + ') o).' + this.getterName + '();'
           },
           {
             name: 'set',
             type: 'void',
             visibility: 'public',
-            args: [ { name: 'o', type: 'Object' }, { name: 'value', type: 'Object' } ],
+            args: [{ name: 'o', type: 'Object' }, { name: 'value', type: 'Object' }],
             body: '((' + this.sourceCls.name + ') o).' + this.setterName + '(cast(value));'
+          },
+          {
+            name: 'clear',
+            type: 'void',
+            visibility: 'public',
+            args: [{ name: 'o', type: 'Object' }],
+            body: '((' + this.sourceCls.name + ') o).' + this.clearName + '();'
           },
           {
             name: 'cast',
             type: this.propType,
             visibility: 'public',
-            args: [ { name: 'o', type: 'Object' } ],
+            args: [{ name: 'o', type: 'Object' }],
             body: 'return (' + this.propType + ') o;'
           },
           {
             name: 'compare',
             type: 'int',
             visibility: 'public',
-            args: [ { name: 'o1', type: 'Object' }, { name: 'o2', type: 'Object' } ],
-            body: 'return foam.util.SafetyUtil.compare(get_(o1), get_(o2));'
+            args: [{ name: 'o1', type: 'Object' }, { name: 'o2', type: 'Object' }],
+            body: this.compare,
           },
           {
             name: 'comparePropertyToObject',
             type: 'int',
             visibility: 'public',
-            args: [ { name: 'key', type: 'Object' }, { name: 'o', type: 'Object' } ],
-            body: 'return foam.util.SafetyUtil.compare(cast(key), get_(o));'
+            args: [{ name: 'key', type: 'Object' }, { name: 'o', type: 'Object' }],
+            body: this.comparePropertyToObject,
           },
           {
             name: 'comparePropertyToValue',
             type: 'int',
             visibility: 'public',
-            args: [ { name: 'key', type: 'Object' }, { name: 'value', type: 'Object' } ],
-            body: 'return foam.util.SafetyUtil.compare(cast(key), cast(value));'
+            args: [{ name: 'key', type: 'Object' }, { name: 'value', type: 'Object' }],
+            body: this.comparePropertyToValue,
           },
           {
             name: 'jsonParser',
             type: 'foam.lib.parse.Parser',
             visibility: 'public',
-            body: 'return ' +  (this.jsonParser ? this.jsonParser : null) + ';'
+            body: 'return ' + ( this.jsonParser ? this.jsonParser : null ) + ';'
+          },
+          {
+            name: 'queryParser',
+            type: 'foam.lib.parse.Parser',
+            visibility: 'public',
+            body: 'return ' + ( this.queryParser ? this.queryParser : null ) + ';'
           },
           {
             name: 'csvParser',
             type: 'foam.lib.parse.Parser',
             visibility: 'public',
-            body: ( this.csvParser ) ?
-              'return new ' + this.csvParser + '();' :
-              'return null;'
+            body: 'return ' + ( this.csvParser ? this.csvParser : null ) + ';'
           },
           {
             name: 'getNetworkTransient',
             type: 'boolean',
             visibility: 'public',
             body: 'return ' + this.networkTransient + ';'
+          },
+          {
+            name: 'getPermissionRequired',
+            type: 'boolean',
+            visibility: 'public',
+            body: 'return ' + this.permissionRequired + ';'
           },
           {
             name: 'getStorageTransient',
@@ -189,14 +264,14 @@ foam.CLASS({
             name: 'isSet',
             visibility: 'public',
             type: 'boolean',
-            args: [ { name: 'o', type: 'Object' } ],
+            args: [{ name: 'o', type: 'Object' }],
             body: `return ((${this.sourceCls.name}) o).${this.propName}IsSet_;`
           },
           {
             name: 'isDefaultValue',
             visibility: 'public',
             type: 'boolean',
-            args: [ { name: 'o', type: 'Object' } ],
+            args: [{ name: 'o', type: 'Object' }],
             /* TODO: revise when/if expression support is added to Java */
             body: `return foam.util.SafetyUtil.compare(get_(o), ${this.propValue}) == 0;`
           }
@@ -207,11 +282,63 @@ foam.CLASS({
             name: 'cloneProperty',
             visibility: 'public',
             type: 'void',
-            args: [ { type: 'foam.core.FObject', name: 'source' },
-                    { type: 'foam.core.FObject', name: 'dest' } ],
+            args: [{ type: 'foam.core.FObject', name: 'source' },
+                    { type: 'foam.core.FObject', name: 'dest' }],
             body: this.cloneProperty
           });
         }
+
+        if ( this.diffProperty != null ) {
+          m.push({
+            name: 'diff',
+            visibility: 'public',
+            type: 'void',
+            args: [{ type: 'foam.core.FObject',       name: 'o1'   },
+                    { type: 'foam.core.FObject',      name: 'o2'   },
+                    { type: 'java.util.Map',          name: 'diff' },
+                    { type: 'foam.core.PropertyInfo', name: 'prop' }],
+            body: this.diffProperty
+          });
+        }
+
+        // default value is true, only generate if value is false
+        if ( ! this.includeInDigest ) {
+          m.push({
+            name:       'includeInDigest',
+            visibility: 'public',
+            type:       'boolean',
+            body:       `return ${this.includeInDigest};`
+          });
+        }
+
+        // default value is true, only generate if value is false
+        if ( ! this.includeInSignature ) {
+          m.push({
+            name:       'includeInSignature',
+            visibility: 'public',
+            type:       'boolean',
+            body:       `return ${this.includeInSignature};`
+          });
+        }
+
+        if ( this.containsPII ) {
+          m.push({
+            name:       'containsPII',
+            visibility: 'public',
+            type:       'boolean',
+            body:       `return ${this.containsPII};`
+          });
+        }
+
+        if ( this.containsDeletablePII ) {
+          m.push({
+            name:       'containsDeletablePII',
+            visibility: 'public',
+            type:       'boolean',
+            body:       `return ${this.containsDeletablePII};`
+          });
+        }
+
         return m;
       }
     }

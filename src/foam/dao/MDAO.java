@@ -5,17 +5,13 @@
  */
 package foam.dao;
 
-import foam.core.AbstractFObject;
-import foam.core.ClassInfo;
-import foam.core.FObject;
-import foam.core.PropertyInfo;
-import foam.core.X;
+import foam.core.*;
 import foam.dao.index.*;
 import foam.mlang.order.Comparator;
 import foam.mlang.predicate.Or;
 import foam.mlang.predicate.Predicate;
 import foam.mlang.sink.GroupBy;
-
+import foam.nanos.logger.Logger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -41,81 +37,136 @@ import java.util.List;
  of tree nodes, each holding one tail instance of the ValueIndex at the end of the chain.
 
  */
-public class MDAO extends AbstractDAO {
-
+ // TODO: clone and freeze objects stored in memory
+public class MDAO
+  extends AbstractDAO
+{
   protected AltIndex index_;
-  protected Object state_;
+  protected Object   state_ = null;
+  protected Object   writeLock_ = new Object();
 
   public MDAO(ClassInfo of) {
     setOf(of);
-    state_ = null;
     index_ = new AltIndex(new TreeIndex((PropertyInfo) this.of_.getAxiomByName("id")));
   }
 
-  public void addIndex(PropertyInfo prop) {
-    index_.addIndex(new TreeIndex(prop));
+  public void addUniqueIndex(PropertyInfo prop) {
+    index_.addIndex(new TreeIndex(prop, new TreeIndex((PropertyInfo) this.of_.getAxiomByName("id"))));
   }
 
-  public void addIndex(Index index) { index_.addIndex(index);}
+  public void addIndex(Index index) {
+    index_.addIndex(index);
+  }
+
+  public void addIndex(PropertyInfo... props) {
+    for ( PropertyInfo prop : props ) addUniqueIndex(prop);
+  }
+
+  synchronized Object getState() {
+    return state_;
+  }
+
+  synchronized void setState(Object state) {
+    state_ = state;
+  }
 
   public FObject put_(X x, FObject obj) {
-    FObject oldValue = find(obj);
-    if ( oldValue != null ) {
-      state_ = index_.remove(state_, oldValue);
+    // Clone and freeze outside of lock to minimize time spent under lock
+    obj = obj.fclone();
+    obj.freeze();
+
+    synchronized ( writeLock_ ) {
+      FObject oldValue = find(obj);
+      Object  state    = getState();
+
+      if ( oldValue != null ) {
+        state = index_.remove(state, oldValue);
+      }
+
+      setState(index_.put(state, obj));
     }
-    state_ = index_.put(state_, obj);
+
+    onPut(obj);
     return obj;
   }
 
   public FObject remove_(X x, FObject obj) {
-    if ( obj == null ) {
-      return null;
+    if ( obj == null ) return null;
+
+    FObject found;
+
+    synchronized ( writeLock_ ) {
+      found = find(obj);
+
+      if ( found != null ) {
+        setState(index_.remove(getState(), found));
+      }
     }
-    FObject found = find(obj);
+
     if ( found != null ) {
-      state_ = index_.remove(state_, found);
+      onRemove(found);
     }
+
     return found;
   }
 
   public FObject find_(X x, Object o) {
-    if ( o == null ) {
-      return null;
-    }
+    Object state;
+
+    state = getState();
+
+    if ( o == null ) return null;
+
     return AbstractFObject.maybeClone(
         getOf().isInstance(o)
-            ? (FObject)index_.planFind(state_,getPrimaryKey().get(o)).find(state_,getPrimaryKey().get(o))
-            : (FObject)index_.planFind(state_, o).find(state_,o)
+          ? (FObject) index_.planFind(state, getPrimaryKey().get(o)).find(state, getPrimaryKey().get(o))
+          : (FObject) index_.planFind(state, o).find(state,o)
     );
   }
 
   public Sink select_(X x, Sink sink, long skip, long limit, Comparator order, Predicate predicate) {
     SelectPlan plan;
-    Predicate simplePredicate = null;
+    Predicate  simplePredicate = null;
+
     // use partialEval to wipe out such useless predicate such as: And(EQ()) ==> EQ(), And(And(EQ()),GT()) ==> And(EQ(),GT())
     if ( predicate != null ) simplePredicate = predicate.partialEval();
 
-    //Whe did or logic by seperate request from MDAO. We return different plan for each parameter of OR logic.
+    Object state = getState();
+
+    // We handle OR logic by seperate request from MDAO. We return different plan for each parameter of OR logic.
     if ( simplePredicate instanceof Or ) {
       Sink dependSink = new ArraySink();
-      // When we have groupBy, order, skip, limit such requirement, we can't do it saparately so I replace a array sink to temporarily holde the whole data
+      // When we have groupBy, order, skip, limit such requirement, we can't do it separately so I replace a array sink to temporarily holde the whole data
       //Then after the plan wa slelect we change it to the origin sink
       int length = ( (Or) simplePredicate ).getArgs().length;
       List<Plan> planList = new ArrayList<>();
       for ( int i = 0; i < length; i++ ) {
         Predicate arg = ( (Or) simplePredicate ).getArgs()[i];
-        planList.add(index_.planSelect(state_, dependSink, 0, AbstractDAO.MAX_SAFE_INTEGER, null, arg));
+        planList.add(index_.planSelect(state, dependSink, 0, AbstractDAO.MAX_SAFE_INTEGER, null, arg));
       }
       plan = new OrPlan(simplePredicate, planList);
     } else {
-      plan = index_.planSelect(state_, sink, skip, limit, order, simplePredicate);
+      plan = index_.planSelect(state, sink, skip, limit, order, simplePredicate);
     }
-    plan.select(state_, sink, skip, limit, order, simplePredicate);
+
+    // TODO: if plan cost is >= size, log a warning
+    if ( state != null && predicate != null && plan.cost() > 1000 && plan.cost() >= index_.size(state) ) {
+      Logger logger = (Logger) x.get("logger");
+      logger.error(predicate.createStatement(), " Unindexed search on MDAO");
+    }
+
+    plan.select(state, sink, skip, limit, order, simplePredicate);
+
     return sink;
   }
 
   public void removeAll_(X x, long skip, long limit, Comparator order, Predicate predicate) {
-    state_ = null;
+    if ( predicate == null ) {
+      synchronized ( writeLock_ ) {
+        setState(null);
+      }
+    } else {
+      super.removeAll_(x, skip, limit, order, predicate);
+    }
   }
-
 }

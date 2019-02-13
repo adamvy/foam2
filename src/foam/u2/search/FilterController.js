@@ -22,19 +22,18 @@ foam.CLASS({
 
   requires: [
     'foam.mlang.sink.Count',
-    'foam.u2.TableView',
-    'foam.u2.ViewSpec',
-    'foam.u2.tag.Card',
-    'foam.u2.tag.Input',
-    'foam.u2.view.ChoiceView',
-    //'foam.u2.search.DateFieldSearchView',
     'foam.u2.search.BooleanRefinement',
     'foam.u2.search.EnumRefinement',
     'foam.u2.search.GroupAutocompleteSearchView',
     'foam.u2.search.GroupBySearchView',
     'foam.u2.search.PropertyRefinement',
     'foam.u2.search.SearchManager',
-    'foam.u2.search.TextSearchView'
+    'foam.u2.search.TextSearchView',
+    'foam.u2.TableView',
+    'foam.u2.tag.Card',
+    'foam.u2.tag.Input',
+    'foam.u2.view.ChoiceView',
+    'foam.u2.ViewSpec'
   ],
 
   exports: [
@@ -42,60 +41,56 @@ foam.CLASS({
     'data as unfilteredDAO'
   ],
 
-  axioms: [
-    foam.u2.CSS.create({
-      code: function CSS() {/*
-        ^ {
-          display: flex;
-          overflow: hidden;
-          flex-grow: 1;
-          width: 100%;
-        }
-        ^search-panel {
-          display: flex;
-          flex-direction: column;
-          flex-shrink: 0;
-          overflow: hidden;
-          min-width: 250px;
-        }
-        ^adding {
-          border: none;
-          flex-shrink: 0;
-          flex-grow: 0;
-          padding: 8px;
-        }
-        ^add-filter {
-          align-items: center;
-          display: flex;
-          justify-content: space-between;
-        }
-        ^count {
-          align-items: center;
-          display: flex;
-          justify-content: space-between;
-        }
-        ^results {
-          display: flex;
-          flex-grow: 1;
-          overflow: hidden;
-        }
-        ^filter-area {
-          flex-grow: 1;
-          overflow-y: auto;
-        }
-        ^filter-header {
-          align-items: center;
-          display: flex;
-        }
-        ^filter-label {
-          flex-grow: 1;
-        }
-        ^filter-container {
-          margin: 6px 8px 0px;
-        }
-      */}
-    })
-  ],
+  css: `
+    ^ {
+      display: flex;
+      overflow: hidden;
+      flex-grow: 1;
+      width: 100%;
+    }
+    ^search-panel {
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      overflow: hidden;
+      min-width: 250px;
+    }
+    ^adding {
+      border: none;
+      flex-shrink: 0;
+      flex-grow: 0;
+      padding: 8px;
+    }
+    ^add-filter {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+    }
+    ^count {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+    }
+    ^results {
+      display: flex;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+    ^filter-area {
+      flex-grow: 1;
+      overflow-y: auto;
+    }
+    ^filter-header {
+      align-items: center;
+      display: flex;
+    }
+    ^filter-label {
+      flex-grow: 1;
+    }
+    ^filter-container {
+      margin: 6px 8px 0px;
+    }
+  `,
 
   properties: [
     'count',
@@ -403,7 +398,7 @@ foam.CLASS({
       isFramed: true,
       code: function() {
         if ( ! this.loaded_ || ! this.data ) return;
-        var fields = this.searchFields;
+        var fields    = this.searchFields;
         var oldFields = this.oldSearchFields_;
 
         // Check for every filter that has been removed, and every filter that
@@ -411,7 +406,7 @@ foam.CLASS({
         // This function is responsible for choosing the view for each property.
         // Eg. drop-downs for Booleans and Enums, before/after for dates, etc.
         if ( oldFields ) {
-          for ( var i = 0; i < oldFields.length; i++ ) {
+          for ( var i = 0 ; i < oldFields.length ; i++ ) {
             if ( ! fields || fields.indexOf(oldFields[i]) < 0 ) {
               this.searchMgr_.remove(oldFields[i]);
               this.searchViews_[oldFields[i]].remove();
@@ -421,7 +416,7 @@ foam.CLASS({
         }
 
         if ( fields ) {
-          for ( var i = 0; i < fields.length; i++ ) {
+          for ( var i = 0 ; i < fields.length ; i++ ) {
             if ( ! oldFields || oldFields.indexOf(fields[i]) < 0 ) {
               var split = this.splitName(fields[i]);
               var prop = this.data.of.getAxiomByName(split.name);
@@ -503,6 +498,111 @@ foam.CLASS({
       class: 'foam.u2.ViewSpec',
       name: 'searchView',
       value: { class: 'foam.u2.search.GroupBySearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'CurrencyRefinement',
+  refines: 'foam.core.Currency',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.CurrencySearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'DateRefinement',
+  refines: 'foam.core.Date',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.DateSearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'IntRefinement',
+  refines: 'foam.core.Int',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.IntegerSearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'ShortRefinement',
+  refines: 'foam.core.Short',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.IntegerSearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'LongRefinement',
+  refines: 'foam.core.Long',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.IntegerSearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'ByteRefinement',
+  refines: 'foam.core.Byte',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.IntegerSearchView' }
+    }
+  ]
+});
+
+
+foam.CLASS({
+  package: 'foam.u2.search',
+  name: 'FloatRefinement',
+  refines: 'foam.core.Float',
+
+  properties: [
+    {
+      class: 'foam.u2.ViewSpec',
+      name: 'searchView',
+      value: { class: 'foam.u2.search.FloatSearchView' }
     }
   ]
 });

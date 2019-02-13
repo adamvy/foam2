@@ -15,7 +15,18 @@
  * limitations under the License.
  */
 
+foam.SCRIPT({
+  package: 'foam.net.node',
+  name: 'HTTPRequestScript',
+  flags: ['node'],
+  requires: [
+    'foam.net.node.HTTPRequest',
+  ],
+  flags: ['node'],
+  code: function() {
 // Registering BaseHTTPRequest facilitates decoration when HTTPRequest has been
 // re-overridden.
 foam.register(foam.lookup('foam.net.node.HTTPRequest'),
               'foam.net.node.BaseHTTPRequest');
+  }
+});
