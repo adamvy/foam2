@@ -515,7 +515,7 @@ foam.CLASS({
       expression: function(root) {
         return root + '/tmp';
       },
-      javaFactory: 'return File.separator + "tmp";'
+      javaFactory: 'return File.separator + "blobstore" + File.separator + "tmp";'
     },
     {
       class: 'String',
@@ -525,7 +525,7 @@ foam.CLASS({
       expression: function(root) {
         return root + '/sha256';
       },
-      javaFactory: 'return File.separator + "sha256";'
+      javaFactory: 'return File.separator + "blobstore" + File.separator + "sha256";'
     },
     {
       class: 'Boolean',
@@ -575,7 +575,6 @@ setIsSet(true);`
           if ( stat && stat.isDirectory() ) return;
         } catch(e) {
           if ( e.code === 'ENOENT' ) return require('fs').mkdirSync(path);
-
           throw e;
         }
       },

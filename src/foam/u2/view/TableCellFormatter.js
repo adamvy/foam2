@@ -4,16 +4,11 @@
  * http://www.apache.org/licenses/LICENSE-2.0
  */
 
+
 foam.CLASS({
   package: 'foam.u2.view',
   name: 'TableCellFormatter',
   extends: 'FObjectProperty',
-
-  requires: [
-    'foam.core.FObjectProperty',
-    'foam.u2.view.FnFormatter',
-  ],
-
   properties: [
     {
       name: 'of',
@@ -23,9 +18,11 @@ foam.CLASS({
       name: 'adapt',
       value: function(o, f, prop) {
         if ( foam.Function.isInstance(f) ) {
-          return prop.FnFormatter.create({f: f});
+          return foam.u2.view.FnFormatter.create({
+            f: f
+          });
         }
-        return prop.FObjectProperty.ADAPT.value.call(this, o, f, prop);
+        return foam.core.FObjectProperty.ADAPT.value.call(this, o, f, prop);
       }
     },
     {
@@ -53,6 +50,14 @@ foam.CLASS({
     {
       class: 'foam.u2.view.TableCellFormatter',
       name: 'tableCellFormatter',
+      adapt: function(o, f, prop) {
+        if ( foam.Function.isInstance(f) ) {
+          return foam.u2.view.FnFormatter.create({
+            f: f
+          });
+        }
+        return foam.core.FObjectProperty.ADAPT.value.call(this, o, f, prop);
+      },
       factory: function() {
         return foam.u2.view.FnFormatter.create({
           class: 'foam.u2.view.FnFormatter',
@@ -72,7 +77,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2.view',
-  name: 'ActionTableCellFormatterRefinement',
+  name: 'ActionTableCellRefinement',
   refines: 'foam.core.Action',
 
   properties: [
@@ -98,7 +103,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2.view',
-  name: 'EnumTableCellFormatterRefinement',
+  name: 'EnumTableCellRefinement',
   refines: 'foam.core.Enum',
 
   properties: [
@@ -115,7 +120,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2.view',
-  name: 'FObjectPropertyTableCellFormatterRefinement',
+  name: 'FObjectPropertyTableCellRefinement',
   refines: 'foam.core.FObjectProperty',
 
   properties: [ [ 'tableCellFormatter', null ] ]
@@ -124,7 +129,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2.view',
-  name: 'CurrencyTableCellFormatterRefinement',
+  name: 'CurrencyTableCellRefinement',
   refines: 'foam.core.Currency',
 
   properties: [
@@ -144,7 +149,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2.view',
-  name: 'DateTableCellFormatterRefinement',
+  name: 'DateTableCellRefinement',
   refines: 'foam.core.Date',
 
   properties: [
@@ -152,7 +157,7 @@ foam.CLASS({
       class: 'foam.u2.view.TableCellFormatter',
       name: 'tableCellFormatter',
       value: function(date) {
-        if ( date ) this.add(date.toLocaleDateString())
+        if ( date ) this.add(date.toLocaleDateString());
       }
     }
   ]
@@ -161,7 +166,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.u2.view',
-  name: 'DateTimeTableCellFormatterRefinement',
+  name: 'DateTimeTableCellRefinement',
   refines: 'foam.core.DateTime',
 
   properties: [

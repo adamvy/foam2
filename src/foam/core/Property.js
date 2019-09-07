@@ -275,6 +275,10 @@ foam.CLASS({
     {
       name: 'type',
     },
+    {
+      name: 'category',
+      value: 'Details'
+    }
   ],
 
   methods: [

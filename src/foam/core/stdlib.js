@@ -954,7 +954,7 @@ foam.LIB({
       function flagFilter(flags) {
         return function(a) {
           if ( ! flags ) return true;
-          if ( ! a.flags ) return true;
+          if ( ! a.flags || ! a.flags.length ) return true;
           for ( var i = 0, f; f = flags[i]; i++ ) {
             if ( a.flags.indexOf(f) != -1 ) return true;
           }

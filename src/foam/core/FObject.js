@@ -57,7 +57,7 @@ foam.LIB({
     },
 
     function isSubType(t) {
-      return this.isSubClass(c);
+      return this.isSubClass(t);
     },
 
     function clone(o) {

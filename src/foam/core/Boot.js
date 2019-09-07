@@ -121,7 +121,6 @@ foam.LIB({
       (Model is 'this').
     */
     function buildClass() {
-      console.log("Building", this.id);
       var context = this.__context__ || foam.__context__;
       var cls;
 

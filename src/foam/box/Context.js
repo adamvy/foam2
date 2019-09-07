@@ -161,3 +161,14 @@ return ClassWhitelistContext_create([
     }
   ]
 });
+
+foam.SCRIPT({
+  package: 'foam.box',
+  name: 'BoxContext',
+  requires: [
+    'foam.box.Context',
+  ],
+  code: function() {
+    foam.__context__ = foam.box.Context.create().__subContext__;
+  }
+});

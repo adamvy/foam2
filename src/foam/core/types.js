@@ -333,6 +333,7 @@ foam.CLASS({
         return v;
       }
     ],
+    [ 'cloneProperty', function(value, map) { map[this.name] = value; } ],
     [ 'type', 'Class' ]
   ],
   methods: [

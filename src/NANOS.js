@@ -132,14 +132,12 @@ foam.FILES([
   "foam/nanos/logger/LogLevelFilterLogger",
   "foam/nanos/logger/LogMessage",
   "foam/nanos/notification/email/SMTPEmailService",
-  "foam/nanos/notification/email/POP3Email",
   "foam/nanos/notification/email/ClientEmailService",
   "foam/nanos/notification/email/EmailService",
   "foam/nanos/notification/email/EmailTemplate",
   "foam/nanos/notification/email/EmailMessage",
   "foam/nanos/notification/email/DAOEmailService",
   "foam/nanos/notification/email/SMTPEmailMessageDAO",
-  "foam/nanos/notification/email/ClientPOP3EmailService",
   "foam/nanos/notification/email/NullEmailService",
   "foam/nanos/notification/NotificationListView",
   "foam/nanos/notification/NotificationView",
@@ -205,5 +203,5 @@ foam.FILES([
   "foam/nanos/dig/exception/UnsupportException",
   "foam/nanos/dig/exception/EmptyDataException",
   "foam/nanos/dig/DIG",
-  "foam/nanos/dig/DigSnippetView",
+  "foam/nanos/dig/DigSnippetView"
 ]);
