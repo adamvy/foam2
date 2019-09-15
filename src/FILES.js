@@ -18,6 +18,7 @@ foam.FILES([
   "foam/core/FObjectArray",
   "foam/core/Constant",
   "foam/core/Validation",
+  "foam/core/Mixin",
   "foam/pattern/Faceted",
   "foam/core/types",
   "foam/core/Topic",

@@ -270,7 +270,11 @@
 
     "foam.nanos.dig.SUGAR",
 
-    "foam.box.AbstractSkeleton"
+    "foam.box.AbstractSkeleton",
+
+    "foam.core.AbstractMethod",
+    "foam.core.Method",
+    "foam.core.Argument"
   ],
 
   "skeletons": [

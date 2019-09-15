@@ -516,35 +516,6 @@ foam.LIB({
           body: 'setX(x);'
         });
 
-        if ( props.length ) {
-          // All-property constructor
-          cls.method({
-            visibility: 'public',
-            name: cls.name,
-            type: '',
-            args: props.map(function(f) {
-              return { name: f.name, type: f.type };
-            }),
-            body: props.map(function(f) {
-              return 'set' + foam.String.capitalize(f.name) + '(' + f.name + ')';
-            }).join(';\n') + ';'
-          });
-
-          // Context oriented all-property constructor
-          cls.method({
-            visibility: 'public',
-            name: cls.name,
-            type: '',
-            args: [{ name: 'x', type: 'foam.core.X' }]
-              .concat(props.map(function(f) {
-                return { name: f.name, type: f.type };
-              })),
-            body: ['setX(x)'].concat(props.map(function(f) {
-              return 'set' + foam.String.capitalize(f.name) + '(' + f.name + ')';
-            })).join(';\n') + ';'
-          });
-        }
-
         if ( ! cls.abstract ) {
           // Apply builder pattern if more than 3 properties and not abstract.
           foam.java.Builder.create({ properties: this.getAxiomsByClass(foam.core.Property)
