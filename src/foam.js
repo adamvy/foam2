@@ -34,6 +34,9 @@
     };
 
   function loadBrowser(path) {
+//    var script = document.createElement('script');
+//    script.setAttribute('src', path);
+//    document.head.appendChild(script);
     document.writeln(
       '<script type="text/javascript" src="' + path + '"></script>\n');
   }

@@ -24,7 +24,9 @@ foam.CLASS({
       of: 'foam.core.Mixin',
       name: 'mixins',
       adaptArrayElement: function(e) {
-        return foam.core.Mixin.create({ name: e });
+        return foam.String.isInstance(e) ?
+          foam.core.Mixin.create({ name: e }) :
+          foam.core.Mixin.create(e);
       }
     }
   ]

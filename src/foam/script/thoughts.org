@@ -1,0 +1,8 @@
+* Grammar parser
+
+A Grammar is just a class, it can be instantiated and asked to parse a pstream.
+
+Let's us compose additional grammars.
+
+Each "symbol" is a method.  A method that is defined by code, or by composition of combinators.
+

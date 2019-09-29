@@ -550,5 +550,11 @@ foam.FILES([
   "foam/build/java/Classes",
   "foam/build/java/Class",
   "foam/build/Library",
-  "foam/build/EmbeddedModelDAO"
+  "foam/build/EmbeddedModelDAO",
+  "foam/script/CompiledMethod",
+  "foam/script/parse/parse",
+  "foam/script/Parser",
+  "foam/script/ParserRecognizer",
+  "foam/script/ParserParser",
+  "foam/script/Test"
 ]);

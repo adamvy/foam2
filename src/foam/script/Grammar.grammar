@@ -1,0 +1,51 @@
+grammar foam.script.ParserRecognizer = (
+
+optionalWhitespace = {whitespaceCharacter | comment};
+whitespace = ( whitespaceCharacter | comment ), optionalWhitespace;
+comment = "(*", {character - "*)"}, "*)";
+
+grammarId = identifier, {'.', identifier};
+
+grammar = optionalWhitespace, "grammar", whitespace, grammarId, optionalWhitespace,
+  "=", optionalWhitespace,
+  "(", {optionalWhitespace, production}, optionalWhitespace, ")";
+
+production = identifier, optionalWhitespace, "=", optionalWhitespace, compoundRule, ";";
+
+ruleComponent = ( parenthesisedRule
+                  | optionalRule
+                  | starRule
+                  | literalRule
+                  | symbolRule ), [ subtractionRule ];
+
+(* Subtraction can only take a ruleComponent on the right side.
+  This ensures that a pattern of "foo - bar, baz" is interpreted as
+  ( foo - bar ), baz; rather than foo - ( bar, baz ). *)
+  
+subtractionRule = optionalWhitespace, "-", optionalWhitespace, ruleComponent;
+
+compoundRule = ruleComponent, optionalWhitespace, [ sequenceRule
+                                                    | alternateRule ];
+
+(* Right recursive on compoundRule *)
+
+sequenceRule = ",", optionalWhitespace, compoundRule;
+alternateRule = "|", optionalWhitespace, compoundRule;
+
+identifier = letter, {letter};
+
+symbolRule = identifier;
+
+nestedRule = optionalWhitespace, compoundRule, optionalWhitespace;
+
+parenthesisedRule = "(", nestedRule, ")";
+starRule = "{", nestedRule, "}";
+optionalRule = "[", nestedRule, "]";
+
+singleQuoteLiteral = "'", character - "'", {character - "'"}, "'";
+doubleQuoteLiteral = '"', character - '"', {character - '"'}, '"';
+
+literalRule = singleQuoteLiteral
+  | doubleQuoteLiteral;
+
+)
