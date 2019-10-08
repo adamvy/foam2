@@ -554,7 +554,13 @@ foam.FILES([
   "foam/script/CompiledMethod",
   "foam/script/parse/parse",
   "foam/script/Parser",
+  "foam/script/BootstrapParserRecognizer",
+  "foam/script/BootstrapParserParser",
+  "foam/script/BootstrapParserCompiler",
   "foam/script/ParserRecognizer",
   "foam/script/ParserParser",
-  "foam/script/Test"
+  "foam/script/ParserCompiler",
+  "foam/script/Test",
+  "foam/script/SmalltalkRecognizer",
+  "foam/script/SmalltalkCompiler"
 ]);

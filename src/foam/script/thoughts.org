@@ -1,8 +1,25 @@
 * Grammar parser
 
-A Grammar is just a class, it can be instantiated and asked to parse a pstream.
+  A Grammar is just a class, it can be instantiated and asked to parse
+  a pstream. Let's us compose additional grammars.
 
-Let's us compose additional grammars.
+  Each "symbol" is a method.  A method that is defined by code, or by
+  composition of combinators.
 
-Each "symbol" is a method.  A method that is defined by code, or by composition of combinators.
+  How do we define semantic actions?  They can be added by extending a
+  recognizer and defering to the SUPER class but that's pretty
+  annoying.
 
+  #+BEGIN_EXAMPLE
+  foam.CLASS({
+    name: "Recognizer",
+    methods: [
+      {
+        class
+    ]
+  #+END_EXAMPLE
+
+  
+
+* Parsing
+  Building parsers is error prone, they are not easy to debug.

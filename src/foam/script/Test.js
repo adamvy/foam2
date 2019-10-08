@@ -81,6 +81,12 @@ literalRule = singleQuoteLiteral
   ],
   actions: [
     {
+      name: 'test',
+      code: function() {
+        this.output = foam.script.ParserParser.create().parseString(this.input, 'grammar').value.stringify();
+      }
+    },
+    {
       name: 'bootstrap',
       code: function() {
         var bootstrapParser = this.BootstrapParserParser.create();

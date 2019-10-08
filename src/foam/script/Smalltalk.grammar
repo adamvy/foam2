@@ -1,111 +1,115 @@
-CommentCharacter = Character - '"';
-  (* Any character other than a double quote *)
+grammar foam.script.SmalltalkRecognizer = (
 
-Comment = '"', {CommentCharacter}, '"';
-OptionalWhitespace = {WhitespaceCharacter | Comment};
-Whitespace = (WhitespaceCharacter | Comment), OptionalWhitespace;
-LetterOrDigit =
-  DecimalDigit
-  | Letter;
-Identifier = (Letter | "_"), {(LetterOrDigit | "_")};
-Reference = Identifier;
-ConstantReference =
-                     "nil"
-                     | "false"
-                     | "true";
-PseudoVariableReference =
-                     "self"
-                     | "super"
-                     | "thisContext";
-             (* "thisContext" is not defined by the ANSI Standard, but is widely used anyway *)
-ReservedIdentifier =
-                     PseudoVariableReference
-                     | ConstantReference;
+commentCharacter = character - '"';
+  (* any character other than a double quote *)
 
-BindableIdentifier = Identifier - ReservedIdentifier;
-UnaryMessageSelector = Identifier;
-Keyword = Identifier, ":";
-KeywordMessageSelector = Keyword, {Keyword};
-BinarySelectorChar = "~" | "!" | "@" | "%" | "&" | "*" | "-" | "+" | "=" | "|" | "\" | "<" | ">" | "," | "?" | "/";
-BinaryMessageSelector = BinarySelectorChar, [BinarySelectorChar];
-IntegerLiteral = ["-"], UnsignedIntegerLiteral;
-UnsignedIntegerLiteral =
-  DecimalIntegerLiteral
-  | Radix, "r", BaseNIntegerLiteral;
-DecimalIntegerLiteral = DecimalDigit, {DecimalDigit};
-Radix = DecimalIntegerLiteral;
-BaseNIntegerLiteral = LetterOrDigit, {LetterOrDigit};
-ScaledDecimalLiteral = ["-"], DecimalIntegerLiteral, [".", DecimalIntegerLiteral], "s", [DecimalIntegerLiteral];
-FloatingPointLiteral = ["-"], DecimalIntegerLiteral, (".", DecimalIntegerLiteral, [Exponent] | Exponent);
-Exponent = ("e" | "d" | "q"), [["-"], DecimalIntegerLiteral];
-CharacterLiteral = "$", Character;
-StringLiteral = "'", {StringLiteralCharacter | "''"}, "'";
-             (* To embed a "'" character in a String literal, use two consecutive single quotes *)
-StringLiteralCharacter = Character - "'";
-             (* Any character other than a single quote *)
-SymbolInArrayLiteral =
-                    UnaryMessageSelector - ConstantReference
-                     | KeywordMessageSelector
-                     | BinaryMessageSelector;
-SymbolLiteral = "#", (SymbolInArrayLiteral | ConstantReference | StringLiteral);
-ArrayLiteral =
-                     ObjectArrayLiteral
-                     | ByteArrayLiteral;
-ObjectArrayLiteral = "#", NestedObjectArrayLiteral;
-NestedObjectArrayLiteral = "(", OptionalWhitespace, [LiteralArrayElement, {Whitespace, LiteralArrayElement}], OptionalWhitespace, ")";
-LiteralArrayElement =
-                     Literal - BlockLiteral
-                     | NestedObjectArrayLiteral
-                     | SymbolInArrayLiteral
-                     | ConstantReference;
-ByteArrayLiteral = "#[", OptionalWhitespace, [UnsignedIntegerLiteral, {Whitespace, UnsignedIntegerLiteral}], OptionalWhitespace,"]";
-     (* The preceding production rules would usually be handled by the lexical analyzer;
+comment = '"', {commentCharacter}, '"';
+optionalWhitespace = {whitespaceCharacter | comment};
+whitespace = (whitespaceCharacter | comment), optionalWhitespace;
+letterOrDigit =
+  decimalDigit
+  | letter;
+identifier = (letter | '_'), {(letterOrDigit | '_')};
+reference = identifier;
+constantReference =
+                     'nil'
+                     | 'false'
+                     | 'true';
+pseudoVariableReference =
+                     'self'
+                     | 'super'
+                     | 'thisContext';
+             (* 'thisContext' is not defined by the ANSI standard, but is widely used anyway *)
+reservedIdentifier =
+                     pseudoVariableReference
+                     | constantReference;
+
+bindableIdentifier = identifier - reservedIdentifier;
+unaryMessageSelector = identifier;
+keyword = identifier, ':';
+keywordMessageSelector = keyword, {keyword};
+binarySelectorChar = '~' | '!' | '@' | '%' | '&' | '*' | '-' | '+' | '=' | '|' | '\' | '<' | '>' | ',' | '?' | '/';
+binaryMessageSelector = binarySelectorChar, [binarySelectorChar];
+integerLiteral = ['-'], unsignedIntegerLiteral;
+unsignedIntegerLiteral =
+  decimalIntegerLiteral
+  | radix, 'r', baseNIntegerLiteral;
+decimalIntegerLiteral = decimalDigit, {decimalDigit};
+radix = decimalIntegerLiteral;
+baseNIntegerLiteral = letterOrDigit, {letterOrDigit};
+scaledDecimalLiteral = ['-'], decimalIntegerLiteral, ['.', decimalIntegerLiteral], 's', [decimalIntegerLiteral];
+floatingPointLiteral = ['-'], decimalIntegerLiteral, ('.', decimalIntegerLiteral, [exponent] | exponent);
+exponent = ('e' | 'd' | 'q'), [['-'], decimalIntegerLiteral];
+characterLiteral = '$', character;
+stringLiteral = '''', {stringLiteralCharacter | ''''''}, '''';
+             (* to embed a single quote character in a string literal, use two consecutive single quotes *)
+stringLiteralCharacter = character - '''';
+             (* any character other than a single quote *)
+symbolInArrayLiteral =
+                    unaryMessageSelector - constantReference
+                     | keywordMessageSelector
+                     | binaryMessageSelector;
+symbolLiteral = '#', (symbolInArrayLiteral | constantReference | stringLiteral);
+arrayLiteral =
+                     objectArrayLiteral
+                     | byteArrayLiteral;
+objectArrayLiteral = '#', nestedObjectArrayLiteral;
+nestedObjectArrayLiteral = '(', optionalWhitespace, [literalArrayElement, {whitespace, literalArrayElement}], optionalWhitespace, ')';
+literalArrayElement =
+                     literal - blockLiteral
+                     | nestedObjectArrayLiteral
+                     | symbolInArrayLiteral
+                     | constantReference;
+byteArrayLiteral = '#[', optionalWhitespace, [unsignedIntegerLiteral, {whitespace, unsignedIntegerLiteral}], optionalWhitespace,']';
+     (* the preceding production rules would usually be handled by the lexical analyzer;
          the following production rules would usually be handled by the parser *)
-FormalBlockArgumentDeclaration = ":", BindableIdentifier;
-FormalBlockArgumentDeclarationList = FormalBlockArgumentDeclaration, {Whitespace, FormalBlockArgumentDeclaration};
+formalBlockArgumentDeclaration = ':', bindableIdentifier;
+formalBlockArgumentDeclarationList = formalBlockArgumentDeclaration, {whitespace, formalBlockArgumentDeclaration};
 
-BlockLiteral = "[", [OptionalWhitespace, FormalBlockArgumentDeclarationList, OptionalWhitespace, "|"], ExecutableCode, OptionalWhitespace, "]";
-Literal = ConstantReference
-                     | IntegerLiteral
-                     | ScaledDecimalLiteral
-                     | FloatingPointLiteral
-                     | CharacterLiteral
-                     | StringLiteral
-                     | SymbolLiteral
-                     | ArrayLiteral
-                     | BlockLiteral;
-NestedExpression = "(", Statement, OptionalWhitespace, ")";
-Operand =
-                     Literal
-                     | Reference
-                     | NestedExpression;
-UnaryMessage = UnaryMessageSelector;
-UnaryMessageChain = {OptionalWhitespace, UnaryMessage};
-BinaryMessageOperand = Operand, UnaryMessageChain;
-BinaryMessage = BinaryMessageSelector, OptionalWhitespace, BinaryMessageOperand;
-BinaryMessageChain = {OptionalWhitespace, BinaryMessage};
-KeywordMessageArgument = BinaryMessageOperand, BinaryMessageChain;
-KeywordMessageSegment = Keyword, OptionalWhitespace, KeywordMessageArgument;
-KeywordMessage = KeywordMessageSegment, {OptionalWhitespace, KeywordMessageSegment};
-MessageChain =
-                     UnaryMessage, UnaryMessageChain, BinaryMessageChain, [KeywordMessage]
-                     | BinaryMessage, BinaryMessageChain, [KeywordMessage]
-                     | KeywordMessage;
-CascadedMessage = ";", OptionalWhitespace, MessageChain;
-Expression = Operand, [OptionalWhitespace, MessageChain, {OptionalWhitespace, CascadedMessage}];
-AssignmentOperation = OptionalWhitespace, BindableIdentifier, OptionalWhitespace, ":=";
-Statement = {AssignmentOperation}, OptionalWhitespace, Expression;
-MethodReturnOperator = OptionalWhitespace, "^";
-FinalStatement = [MethodReturnOperator], Statement;
-LocalVariableDeclarationList = OptionalWhitespace, "|", OptionalWhitespace, [BindableIdentifier, {Whitespace, BindableIdentifier}], OptionalWhitespace, "|";
-ExecutableCode = [LocalVariableDeclarationList], [{Statement, OptionalWhitespace, "."}, FinalStatement, ["."]];
+blockLiteral = '[', [optionalWhitespace, formalBlockArgumentDeclarationList, optionalWhitespace, '|'], executableCode, optionalWhitespace, ']';
+literal = constantReference
+                     | integerLiteral
+                     | scaledDecimalLiteral
+                     | floatingPointLiteral
+                     | characterLiteral
+                     | stringLiteral
+                     | symbolLiteral
+                     | arrayLiteral
+                     | blockLiteral;
+nestedExpression = '(', statement, optionalWhitespace, ')';
+operand =
+                     literal
+                     | reference
+                     | nestedExpression;
+unaryMessage = unaryMessageSelector;
+unaryMessageChain = {optionalWhitespace, unaryMessage};
+binaryMessageOperand = operand, unaryMessageChain;
+binaryMessage = binaryMessageSelector, optionalWhitespace, binaryMessageOperand;
+binaryMessageChain = {optionalWhitespace, binaryMessage};
+keywordMessageArgument = binaryMessageOperand, binaryMessageChain;
+keywordMessageSegment = keyword, optionalWhitespace, keywordMessageArgument;
+keywordMessage = keywordMessageSegment, {optionalWhitespace, keywordMessageSegment};
+messageChain =
+                     unaryMessage, unaryMessageChain, binaryMessageChain, [keywordMessage]
+                     | binaryMessage, binaryMessageChain, [keywordMessage]
+                     | keywordMessage;
+cascadedMessage = ';', optionalWhitespace, messageChain;
+expression = operand, [optionalWhitespace, messageChain, {optionalWhitespace, cascadedMessage}];
+assignmentOperation = optionalWhitespace, bindableIdentifier, optionalWhitespace, ':=';
+statement = {assignmentOperation}, optionalWhitespace, expression;
+methodReturnOperator = optionalWhitespace, '^';
+finalStatement = [methodReturnOperator], statement;
+localVariableDeclarationList = optionalWhitespace, '|', optionalWhitespace, [bindableIdentifier, {whitespace, bindableIdentifier}], optionalWhitespace, '|';
+executableCode = [localVariableDeclarationList], [{statement, optionalWhitespace, '.'}, finalStatement, ['.']];
 
-UnaryMethodHeader = UnaryMessageSelector;
-BinaryMethodHeader = BinaryMessageSelector, OptionalWhitespace, BindableIdentifier;
-KeywordMethodHeaderSegment = Keyword, OptionalWhitespace, BindableIdentifier;
-KeywordMethodHeader = KeywordMethodHeaderSegment, {Whitespace, KeywordMethodHeaderSegment};
-MethodHeader =
-                      UnaryMethodHeader
-                      | BinaryMethodHeader
-                      | KeywordMethodHeader;
-MethodDeclaration = OptionalWhiteSpace, MethodHeader, ExecutableCode;
+unaryMethodHeader = unaryMessageSelector;
+binaryMethodHeader = binaryMessageSelector, optionalWhitespace, bindableIdentifier;
+keywordMethodHeaderSegment = keyword, optionalWhitespace, bindableIdentifier;
+keywordMethodHeader = keywordMethodHeaderSegment, {whitespace, keywordMethodHeaderSegment};
+methodHeader =
+                      unaryMethodHeader
+                      | binaryMethodHeader
+                      | keywordMethodHeader;
+methodDeclaration = optionalWhiteSpace, methodHeader, executableCode;
+
+)

@@ -1,6 +1,6 @@
 foam.CLASS({
   package: 'foam.script',
-  name: 'BootstrapParserParser',
+  name: 'ParserParser',
   requires:  [
     'foam.script.parse.Sequence',
     'foam.script.parse.Alternate',
@@ -10,11 +10,23 @@ foam.CLASS({
     'foam.script.parse.Optional',
     'foam.script.parse.Repeat'
   ],
-  extends: 'foam.script.BootstrapParserRecognizer',
+  extends: 'foam.script.ParserRecognizer',
   methods: [
+    function action(ps) {
+      ps = this.SUPER(ps);
+      if ( ! ps ) return ps;
+
+      return ps.setValue(ps.value[1][0].join(''));
+    },
     function production(ps) {
       ps = this.SUPER(ps);
       if ( ! ps ) return undefined;
+
+      var action = ps.value[1][1][1][1][1];
+
+      if ( action ) action = action[0];
+
+
 
       return ps.setValue(foam.script.CompiledMethod.create({
         name: ps.value[0],
@@ -85,12 +97,24 @@ foam.CLASS({
       ps = this.SUPER(ps);
       if ( ! ps ) return ps;
 
-      if ( ! ps.value[1] ) return ps.setValue(ps.value[0]);
+      var name = ps.value[1][0];
 
-      return ps.setValue(ps.value[1][0].create({
+      if ( name ) debugger;
+
+      if ( ! ps.value[1][1] ) return ps.setValue(ps.value[0]);
+
+      return ps.setValue(ps.value[1][1][0].create({
         arg1: ps.value[0],
-        arg2: ps.value[1][1]
+        arg2: ps.value[1][1][1]
       }));
+    },
+    function namedMatch(ps) {
+      ps = this.SUPER(ps);
+      if ( ! ps ) return ps;
+
+      debugger;
+
+      return ps;
     },
     function compoundRule(ps) {
       ps = this.SUPER(ps);

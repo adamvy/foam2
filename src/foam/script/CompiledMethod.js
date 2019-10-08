@@ -4,7 +4,10 @@ foam.INTERFACE({
   methods: [
     {
       type: 'Code',
-      name: 'compile'
+      name: 'compile',
+      args: [
+        { name: 'scope' }
+      ]
     }
   ]
 });
@@ -22,9 +25,38 @@ foam.CLASS({
     },
     {
       name: 'code',
-      expression: function(ast) {
-        return ast.compile();
+      expression: function(name, ast) {
+        var x = {
+          _methodName: name,
+          locals: {}
+        };
+
+        return ast.compile(x);
       }
     }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.script.parse',
+  name: 'ParserMethod',
+  extends: 'foam.core.Method',
+  properties: [
+    {
+      class: 'FObjectProperty',
+      of: 'foam.script.Compilable',
+      name: 'parser'
+    },
+    {
+      class: 'Function',
+      name: 'action',
+    },
+    {
+      name: 'code',
+      expression: function(parser, action) {
+      }
+    }
+  ],
+  methods: [
   ]
 });
