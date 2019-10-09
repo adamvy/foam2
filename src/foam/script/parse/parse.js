@@ -52,6 +52,7 @@ foam.CLASS({
   package: 'foam.script.parse',
   name: 'Literal',
   implements: [ 'foam.script.Compilable' ],
+  mixins: [ 'foam.script.parse.Terminal' ],
   extends: 'foam.script.parse.AbstractParser',
   documentation: 'Matches a literal with the parse stream (case sensitive)',
 
@@ -67,11 +68,11 @@ foam.CLASS({
   ],
 
   methods: [
-    function compile(x) {
+    function compile() {
       var string = this.string;
       var value = this.value;
 
-      return function(ps) {
+      return function(x, ps) {
         for ( var i = 0 ; i < string.length ; i++, ps = ps.tail ) {
           if ( string.charAt(i) !== ps.head ) {
             return undefined;
@@ -89,6 +90,7 @@ foam.CLASS({
   package: 'foam.script.parse',
   name: 'LiteralIC',
   implements: [ 'foam.script.Compilable' ],
+  mixins: [ 'foam.script.parse.Terminal' ],
   extends: 'foam.script.parse.AbstractParser',
   documentation: 'Matches a literal with the parse stream (case insensitive)',
 
@@ -104,12 +106,12 @@ foam.CLASS({
   ],
 
   methods: [
-    function compile(x) {
+    function compile() {
       var string = this.string;
       var lower = this.string.toLowerCase();
       var value = this.value;
 
-      return function(ps) {
+      return function(x, ps) {
         for ( var i = 0 ; i < string.length ; i++, ps = ps.tail ) {
           if ( ! ps.head || lower.charAt(i) !== ps.head.toLowerCase() )
             return undefined;
@@ -134,17 +136,45 @@ foam.CLASS({
       of: 'foam.script.Compilable',
       name: 'arg2'
     }
+  ],
+  methods: [
+    function visit(f) {
+      this.arg1.visit(f);
+      this.arg2.visit(f);
+      f(this);
+    }
   ]
 });
 
 foam.CLASS({
   package: 'foam.script.parse',
   name: 'Unary',
+  implements: [ 'foam.script.Node' ],
   properties: [
     {
       class: 'FObjectProperty',
       of: 'foam.script.Compilable',
       name: 'arg'
+    }
+  ],
+  methods: [
+    function visit(f) {
+      this.arg.visit(f);
+      f(this);
+    }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.script.parse',
+  name: 'Terminal',
+  implements: [ 'foam.script.Node' ],
+  methods: [
+    {
+      name: 'visit',
+      code: function(f) {
+        f(this);
+      }
     }
   ]
 });
@@ -156,13 +186,14 @@ foam.CLASS({
   implements: [
     'foam.script.Compilable'
   ],
+  mixins: [ 'foam.script.parse.Terminal' ],
   extends: 'foam.script.parse.AbstractParser',
 
   documentation: 'Matches the literal EOF of the input stream, useful if you want to force your grammar to only succeed if it consumes the entire input.',
 
   methods: [
-    function compile(x) {
-      return function(ps) {
+    function compile() {
+      return function(x, ps) {
         return ps.valid ? undefined : ps;
       };
     }
@@ -176,12 +207,12 @@ foam.CLASS({
   extends: 'foam.script.parse.AbstractParser',
   mixins: [ 'foam.script.parse.Binary' ],
   methods: [
-    function compile(x) {
-      var f1 = this.arg1.compile(x);
-      var f2 = this.arg2.compile(x);
+    function compile() {
+      var f1 = this.arg1.compile();
+      var f2 = this.arg2.compile();
 
-      return function(ps) {
-        return f1.call(this, ps) || f2.call(this, ps);
+      return function(x, ps) {
+        return f1.call(this, x, ps) || f2.call(this, x, ps);
       };
     }
   ]
@@ -196,14 +227,14 @@ foam.CLASS({
   mixins: [ 'foam.script.parse.Binary' ],
   documentation: 'Parses the parser properties sequentially.',
   methods: [
-    function compile(x) {
-      var f1 = this.arg1.compile(x);
-      var f2 = this.arg2.compile(x);
-      return function(ps) {
-        var ps1 = f1.call(this, ps);
+    function compile() {
+      var f1 = this.arg1.compile();
+      var f2 = this.arg2.compile();
+      return function(x, ps) {
+        var ps1 = f1.call(this, x, ps);
         if ( ! ps1 ) return undefined;
 
-        var ps2 = f2.call(this, ps1);
+        var ps2 = f2.call(this, x, ps1);
         if ( ! ps2 ) return undefined;
 
         return ps2.setValue([ps1.value, ps2.value]);
@@ -219,12 +250,12 @@ foam.CLASS({
   extends: 'foam.script.parse.AbstractParser',
   mixins: [ 'foam.script.parse.Unary' ],
   methods: [
-    function compile(x) {
-      var f = this.arg.compile(x);
+    function compile() {
+      var f = this.arg.compile();
 
-      return function(ps) {
+      return function(x, ps) {
         var start = ps;
-        var end = f.call(this, ps);
+        var end = f.call(this, x, ps);
         return end ? end.setValue(start.substring(end)) : undefined;
       };
     }
@@ -238,10 +269,10 @@ foam.CLASS({
   extends: 'foam.script.parse.AbstractParser',
   mixins: [ 'foam.script.parse.Unary' ],
   methods: [
-    function compile(x) {
-      var f = this.arg.compile(x);
-      return function(ps) {
-        return f.call(this, ps) || ps.setValue(null);
+    function compile() {
+      var f = this.arg.compile();
+      return function(x, ps) {
+        return f.call(this, x, ps) || ps.setValue(null);
       };
     }
   ]
@@ -250,6 +281,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.script.parse',
   name: 'AnyChar',
+  mixins: [ 'foam.script.parse.Terminal' ],
   implements: [ 'foam.script.Compilable' ],
   extends: 'foam.script.parse.AbstractParser',
 
@@ -260,9 +292,9 @@ foam.CLASS({
   axioms: [ foam.pattern.Singleton.create() ],
 
   methods: [
-    function compile(x) {
+    function compile() {
       // TODO: Singleton the compiled form.
-      return function(ps) {
+      return function(x, ps) {
         return ps.valid ? ps.tail : undefined;
       };
     }
@@ -272,6 +304,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.script.parse',
   name: 'NotChars',
+  mixins: [ 'foam.script.parse.Terminal' ],
   implements: [ 'foam.script.Compilable' ],
   extends: 'foam.script.parse.AbstractParser',
   documentation: `Matches against all but the chars specified
@@ -285,10 +318,10 @@ foam.CLASS({
   ],
 
   methods: [
-    function compile(x) {
+    function compile() {
       var string = this.string;
 
-      return function(ps) {
+      return function(x, ps) {
         return ps.head && this.string.indexOf(ps.head) === -1 ?
           ps.tail : undefined;
       };
@@ -298,6 +331,7 @@ foam.CLASS({
 
 foam.CLASS({
   package: 'foam.script.parse',
+  mixins: [ 'foam.script.parse.Terminal' ],
   name: 'Chars',
   implements: [ 'foam.script.Compilable' ],
   extends: 'foam.script.parse.AbstractParser',
@@ -312,10 +346,10 @@ foam.CLASS({
   ],
 
   methods: [
-    function compile(x) {
+    function compile() {
       var string = this.string;
 
-      return function(ps) {
+      return function(x, ps) {
         return ps.valid && string.indexOf(ps.head) !== -1 ?
           ps.tail : undefined;
       };
@@ -327,6 +361,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.script.parse',
   name: 'Range',
+  mixins: [ 'foam.script.parse.Terminal' ],
   implements: ['foam.script.Compilable' ],
   extends: 'foam.script.parse.AbstractParser',
   properties: [
@@ -342,11 +377,11 @@ foam.CLASS({
   ],
 
   methods: [
-    function compile(x) {
+    function compile() {
       var from = this.from;
       var to = this.to;
 
-      return function (ps) {
+      return function (x, ps) {
         if ( ! ps.head ) return undefined;
         return ( from <= ps.head && ps.head <= to ) ?
           ps.tail.setValue(ps.head) :
@@ -379,23 +414,23 @@ foam.CLASS({
   ],
 
   methods: [
-    function compile(x) {
-      var f = this.arg.compile(x);
-      var delim = this.delimiter && this.delimiter.compile(x);
+    function compile() {
+      var f = this.arg.compile();
+      var delim = this.delimiter && this.delimiter.compile();
       var minimum = this.minimum;
 
-      return function(ps) {
+      return function(x, ps) {
         var ret = [];
 
         while ( ps.valid ) {
           var res;
 
           if ( delim && ret.length != 0 ) {
-            if ( ! ( res = delim.call(this, ps) ) ) break;
+            if ( ! ( res = delim.call(this, x, ps) ) ) break;
             ps = res;
           }
 
-          if ( ! ( res = f.call(this, ps) ) ) break;
+          if ( ! ( res = f.call(this, x, ps) ) ) break;
           ret.push(res.value);
           ps = res;
         }
@@ -415,10 +450,10 @@ foam.CLASS({
   extends: 'foam.script.parse.AbstractParser',
   mixins: [ 'foam.script.parse.Unary' ],
   methods: [
-    function compile(x) {
-      var f = this.arg.compile(x);
-      return function(ps) {
-        return f.call(this, ps) ? undefined : ps;
+    function compile() {
+      var f = this.arg.compile();
+      return function(x, ps) {
+        return f.call(this, x, ps) ? undefined : ps;
       }
     }
   ]
@@ -431,12 +466,12 @@ foam.CLASS({
   extends: 'foam.script.parse.AbstractParser',
   mixins: [ 'foam.script.parse.Binary' ],
   methods: [
-    function compile(x) {
-      var arg1 = this.arg1.compile(x);
-      var arg2 = this.arg2.compile(x);
+    function compile() {
+      var arg1 = this.arg1.compile();
+      var arg2 = this.arg2.compile();
 
-      return function(ps) {
-        return arg2.call(this, ps) ?  undefined : arg1.call(this, ps);
+      return function(x, ps) {
+        return arg2.call(this, x, ps) ?  undefined : arg1.call(this, x, ps);
       };
     }
   ]
@@ -445,6 +480,7 @@ foam.CLASS({
 foam.CLASS({
   package: 'foam.script.parse',
   name: 'Symbol',
+  mixins: [ 'foam.script.parse.Terminal' ],
   implements: [
     'foam.script.Compilable'
   ],
@@ -460,7 +496,7 @@ foam.CLASS({
       name: 'compile',
       code: function() {
         var name = this.name;
-        return function(ps) {
+        return function(x, ps) {
           return this[name](ps);
         };
       }
@@ -717,16 +753,32 @@ foam.CLASS({
     }
   ],
   methods: [
-    function compile(context) {
+    function compile() {
       var name = this.name;
-      var arg = this.arg.compile(context);
+      var arg = this.arg.compile();
 
-      return function(ps) {
-        ps = arg.call(this, ps);
+      return function(x, ps) {
+        ps = arg.call(this, x, ps);
         if ( ! ps ) return ps;
-
-        context.locals[name] = ps.value;
+        x.locals[name] = ps.value;
         return ps;
+      };
+    }
+  ]
+});
+
+foam.CLASS({
+  package: 'foam.script.parse',
+  name: 'NewScope',
+  implements: [ 'foam.script.Compilable' ],
+  mixins: [ 'foam.script.parse.Unary' ],
+  methods: [
+    function compile() {
+      var arg = this.arg.compile();
+      return function(x, ps) {
+        x = Object.create(x);
+        x.locals = {};
+        return arg.call(this, x, ps);
       };
     }
   ]
@@ -748,18 +800,13 @@ foam.CLASS({
   methods: [
     {
       name: 'compile',
-      code: function(x) {
-        x = Object.create(x);
-        x.locals = {};
-
+      code: function() {
         var code = this.code;
         var args = this.args;
-        var f = this.arg.compile(x);
+        var f = this.arg.compile();
 
-        return function(ps) {
-          args.forEach(function(name) { x.locals[name] = null; });
-
-          ps = f.call(this, ps);
+        return function(x, ps) {
+          ps = f.call(this, x, ps);
           if ( ! ps ) return ps;
 
           return ps.setValue(code.apply(this, args.map(name => x.locals[name])));
@@ -802,11 +849,9 @@ foam.CLASS({
   name: 'Super',
   implements: [ 'foam.script.Compilable' ],
   methods: [
-    function compile(x) {
-      var name = x._methodName;
-
-      return function(ps) {
-        return this.__proto__.__proto__[name].call(this, ps);
+    function compile() {
+      return function(x, ps) {
+        return this.__proto__.__proto__[x._methodName].call(this, ps);
       }
     }
   ]

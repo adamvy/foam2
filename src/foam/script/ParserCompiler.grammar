@@ -1,0 +1,105 @@
+grammar foam.script.ParserCompiler = (
+
+optionalWhitespace = {whitespaceCharacter | comment};
+whitespace = ( whitespaceCharacter | comment ), optionalWhitespace;
+comment = '(*', {character - '*)'}, '*)';
+
+package = {identifier, '.'}:xs -> {{ var s = xs.map(a => a.join('')).join(''); return s.substring(0, s.length - 1); }};
+
+grammar = optionalWhitespace, 'grammar', whitespace, package:pkg, identifier:name, optionalWhitespace,
+  '=', optionalWhitespace,
+  '(', {optionalWhitespace, production}:productions, optionalWhitespace, ')' -> {{
+  return foam.core.Model.create({
+    package: pkg,
+    name: name,
+    extends: 'foam.script.parse.AbstractGrammar',
+    mixins: [ 'foam.script.parse.CharacterClasses' ],
+    methods: productions.map(m => m[1])
+  });
+}};
+
+production = identifier:name, optionalWhitespace, '=', optionalWhitespace, compoundRule:ast, [ semanticAction ]:action, ';' -> {{
+  var args = [];
+  ast.visit(function(node) {
+    if ( foam.script.parse.Named.isInstance(node) )
+      args.push(node.name);
+  });
+
+  var compiled = Function.apply(null, args.concat(action));
+
+  if ( action ) {
+    ast = foam.script.parse.WithAction.create({
+      code: compiled,
+      args: args,
+      arg: ast
+    });
+  }
+
+  return foam.script.CompiledMethod.create({
+    name: name,
+    ast: ast
+  });
+}};
+
+semanticAction = optionalWhitespace, '->', optionalWhitespace, action:a -> {{ return a; }};
+
+action = '{{', {character - '}}'}:xs, '}}' -> {{ return xs.join(''); }};
+
+ruleComponent = ( parenthesisedRule
+                  | optionalRule
+                  | starRule
+                  | literalRule
+                  | symbolRule ):primary, [ namedMatch ]:name, [ subtractionRule ]:negated -> {{
+  var parser = negated ? foam.script.parse.Except.create({
+    arg1: primary,
+    arg2: negated
+  }) : primary;
+  
+  return name ? foam.script.parse.Named.create({
+    name: name,
+    arg: parser
+  }) : parser;
+}};
+
+namedMatch = ':', identifier:id -> {{ return id; }};
+
+(* Subtraction can only take a ruleComponent on the right side.
+  This ensures that a pattern of 'foo - bar, baz' is interpreted as
+  ( foo - bar ), baz; rather than foo - ( bar, baz ). *)
+
+subtractionRule = optionalWhitespace, '-', optionalWhitespace, ruleComponent:rhs -> {{ return rhs; }};
+
+compoundRule = ruleComponent:lhs, optionalWhitespace, [ sequenceRule
+                                                        | alternateRule ]:rhs -> {{
+  if ( rhs ) return rhs[0].create({
+    arg1: lhs,
+    arg2: rhs[1]
+  });
+  return lhs;
+}};
+
+(* Right recursive on compoundRule *)
+
+sequenceRule = ',', optionalWhitespace, compoundRule:rhs -> {{
+  return [ foam.script.parse.Sequence, rhs ];
+}};
+
+alternateRule = '|', optionalWhitespace, compoundRule:rhs -> {{  return [ foam.script.parse.Alternate, rhs ]; }};
+
+identifier = letter:x, {letter}:xs -> {{ return x + xs.join(''); }};
+
+symbolRule = identifier:x -> {{ return foam.script.parse.Symbol.create({ name: x }); }};
+
+nestedRule = optionalWhitespace, compoundRule:inner, optionalWhitespace -> {{ return inner; }};
+
+parenthesisedRule = '(', nestedRule:inner, ')' -> {{ return inner; }};
+starRule = '{', nestedRule:inner, '}' -> {{ return foam.script.parse.Repeat.create({ arg: inner }); }};
+optionalRule = '[', nestedRule:inner, ']' -> {{ return foam.script.parse.Optional.create({ arg: inner }); }};
+
+escapedSingleQuote = '''''' -> {{ return '\''; }};
+
+literalRule = '''', {escapedSingleQuote | character - ''''}:xs, '''' -> {{
+  return foam.script.parse.Literal.create({ string: xs.join('') });
+}};
+
+)

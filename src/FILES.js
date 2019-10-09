@@ -560,7 +560,9 @@ foam.FILES([
   "foam/script/ParserRecognizer",
   "foam/script/ParserParser",
   "foam/script/ParserCompiler",
+  "foam/script/ParserCompilerDemo",
   "foam/script/Test",
   "foam/script/SmalltalkRecognizer",
-  "foam/script/SmalltalkCompiler"
+  "foam/script/SmalltalkCompiler",
+  "foam/script/SmalltalkCompilerDemo"
 ]);

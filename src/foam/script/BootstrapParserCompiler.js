@@ -28,13 +28,11 @@ foam.CLASS({
             star(),
           P.literal('*)'))),
 
-      grammarId: P.substring(
-        P.and(
-          P.sym('identifier'),
-          P.and(
-            P.literal('.'),
-            P.sym('identifier')).
-            star())),
+      package: P.withAction(
+        P.named('xs', P.and(P.sym('identifier'),
+                            P.literal('.')).
+                star()),
+        function(xs) { var s = xs.map(a => a.join('')).join(''); return s.substring(0, s.length - 1); }),
 
       grammar: P.withAction(
         P.and(
@@ -44,32 +42,26 @@ foam.CLASS({
             P.and(
               P.sym('whitespace'),
               P.and(
-                P.named('id', P.sym('grammarId')),
+                P.named('pkg', P.sym('package')),
                 P.and(
-                  P.sym('whitespace'),
+                  P.named('name', P.substring(P.sym('identifier'))),
                   P.and(
-                    P.literal('='),
+                    P.sym('whitespace'),
                     P.and(
-                      P.sym('whitespace'),
+                      P.literal('='),
                       P.and(
-                        P.literal('('),
+                        P.sym('whitespace'),
                         P.and(
-                          P.named('productions',
-                                  P.and(
-                                    P.sym('optionalWhitespace'),
-                                    P.sym('production')).star()),
+                          P.literal('('),
                           P.and(
-                            P.sym('optionalWhitespace'),
-                            P.literal(')'))))))))))),
-        function(id, productions) {
-          var pkg, name;
-
-          if ( id.indexOf('.') != -1 )
-            pkg = id.substring(0, id.lastIndexOf('.'));
-
-          name = id.substring(id.lastIndexOf('.') + 1);
-
-          debugger;
+                            P.named('productions',
+                                    P.and(
+                                      P.sym('optionalWhitespace'),
+                                      P.sym('production')).star()),
+                            P.and(
+                              P.sym('optionalWhitespace'),
+                              P.literal(')')))))))))))),
+        function(pkg, name, productions) {
           return foam.core.Model.create({
             package: pkg,
             name: name,
@@ -90,13 +82,52 @@ foam.CLASS({
               P.sym('optionalWhitespace'),
               P.and(
                 P.named('ast', P.sym('compoundRule')),
-                P.literal(';')))))),
-        function(name, ast) {
+                P.and(
+                  P.named('action', P.sym('semanticAction').maybe()),
+                  P.literal(';'))))))),
+        function(name, ast, action) {
+          var args = [];
+          ast.visit(function(node) {
+            if ( foam.script.parse.Named.isInstance(node) )
+              args.push(node.name);
+          });
+
+          var compiled = Function.apply(null, args.concat(action));
+
+          if ( action ) {
+            ast = foam.script.parse.WithAction.create({
+              code: compiled,
+              args: args,
+              arg: ast
+            });
+          }
+
           return foam.script.CompiledMethod.create({
             name: name,
             ast: ast
           });
         }),
+
+      semanticAction: P.withAction(
+        P.and(
+          P.sym('optionalWhitespace'),
+          P.and(
+            P.literal('->'),
+            P.and(
+              P.sym('optionalWhitespace'),
+              P.named('a', P.sym('action'))))),
+        function(a) { return a; }),
+
+      action: P.withAction(
+        P.and(
+          P.literal('{{'),
+          P.and(
+            P.named('xs', P.except(P.sym('character'), P.literal('}}')).star()),
+            P.literal('}}'))),
+        function(xs) {
+          return xs.join('');
+        }),
+
 
       ruleComponent: P.withAction(
         P.and(
@@ -110,15 +141,25 @@ foam.CLASS({
                         P.or(
                           P.sym('literalRule'),
                           P.sym('symbolRule')))))),
-          P.named('negated', P.sym('subtractionRule').maybe())),
-        function(primary, negated) {
-          if ( negated ) return foam.script.parse.Except.create({
+          P.and(
+            P.named('name', P.sym('namedMatch').maybe()),
+            P.named('negated', P.sym('subtractionRule').maybe()))),
+        function(primary, name, negated) {
+          var parser = negated ? foam.script.parse.Except.create({
             arg1: primary,
             arg2: negated
-          });
-          return primary;
+          }) : primary;
+
+          return name ? foam.script.parse.Named.create({
+            name: name,
+            arg: parser
+          }) : parser;
         }),
 
+      namedMatch: P.withAction(
+        P.and(P.literal(':'),
+              P.named('id', P.sym('identifier'))),
+        function(id) { return id; }),
 
       subtractionRule: P.withAction(
         P.and(
@@ -141,6 +182,8 @@ foam.CLASS({
                       P.sym('alternateRule')).
                     maybe()))),
         function(lhs, rhs) {
+          if ( lhs == null ) debugger;
+
           if ( rhs ) return rhs[0].create({
             arg1: lhs,
             arg2: rhs[1]
@@ -204,7 +247,7 @@ foam.CLASS({
           P.and(
             P.named('inner', P.sym('nestedRule')),
             P.literal('}'))),
-        function(inner) { return inner; }),
+        function(inner) { return foam.script.parse.Repeat.create({ arg: inner }); }),
 
       optionalRule: P.withAction(
         P.and(

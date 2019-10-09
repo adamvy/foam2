@@ -12,6 +12,20 @@ foam.INTERFACE({
   ]
 });
 
+foam.INTERFACE({
+  package: 'foam.script',
+  name: 'Node',
+  methods: [
+    {
+      type: 'Void',
+      name: 'visit',
+      args: [
+        { name: 'visitor', type: 'Function' }
+      ]
+    }
+  ]
+});
+
 foam.CLASS({
   package: 'foam.script',
   name: 'CompiledMethod',
@@ -26,12 +40,16 @@ foam.CLASS({
     {
       name: 'code',
       expression: function(name, ast) {
-        var x = {
-          _methodName: name,
-          locals: {}
-        };
+        var f = ast.compile();
 
-        return ast.compile(x);
+        return function(ps) {
+          var x = {
+            _methodName: name,
+            locals: {}
+          };
+
+          return f.call(this, x, ps);
+        }
       }
     }
   ]
